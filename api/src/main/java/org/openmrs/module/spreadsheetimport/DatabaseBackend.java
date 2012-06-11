@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -422,12 +424,21 @@ public class DatabaseBackend {
 						continue;
 					
 					// SPECIAL TREATMENT 2
-					// if first name, last name, middle name, gender, and person_address match existing record, then use that record instead
+					// if first name, last name, middle name, gender, and birthdate match existing record, then use that record instead
 					UniqueImport personName = new UniqueImport("person_name", null);
-					UniqueImport personAddress = new UniqueImport("person_address", null);
-					if (rowData.containsKey(personName) && rowData.containsKey(personAddress)) {						
+					if (rowData.containsKey(personName)) {						
 						Set<SpreadsheetImportTemplateColumn> personNameColumns = rowData.get(personName);
-						Set<SpreadsheetImportTemplateColumn> personAddressColumns = rowData.get(personAddress);
+						
+						// getting gender, birthdate from person
+						Object gender = null;
+						Object birthdate = null;
+						for (SpreadsheetImportTemplateColumn personColumn : rowData.get(uniqueImport)) {
+							String columnName = personColumn.getColumnName();
+							if ("birth_date".equals(columnName))
+								birthdate = personColumn.getValue();
+							if ("gender".equals(columnName))
+								gender = personColumn.getValue();
+						}
 						
 						// getting first name, last name, middle name from person
 						Object givenName = null;
@@ -443,40 +454,23 @@ public class DatabaseBackend {
 								middleName = personNameColumn.getValue();
 						}
 						
-						// getting person_address
-						Object address1 = null;
-						Object address2 = null;
-						Object city_village = null;
-						for (SpreadsheetImportTemplateColumn personAddressColumn : personAddressColumns) {
-							String columnName = personAddressColumn.getColumnName();
-							if ("address1".equals(columnName))
-								address1 = personAddressColumn.getValue();
-							if ("address2".equals(columnName))
-								address2 = personAddressColumn.getValue();
-							if ("city_village".equals(columnName))
-								city_village = personAddressColumn.getValue();
-						}
-						
+											
 						// find matching person name
-						sql = "select person_id from person_name where given_name = " + (givenName == null ? "NULL" : givenName) + " and family_name = " + (familyName == null ? "NULL" : familyName) + " and middle_name = " + (middleName == null ? "NULL" : middleName);
+						sql = "select person_id from person_name join person where gender = " + (gender == null ? "NULL" : gender) + " and and birthdate = " + (birthdate == null ? "NULL" : birthdate) + " and given_name = " + (givenName == null ? "NULL" : givenName) + " and family_name = " + (familyName == null ? "NULL" : familyName) + " and middle_name = " + (middleName == null ? "NULL" : middleName);
 						ResultSet rs = s.executeQuery(sql);
 						String personId = null;
 						if (rs.next()) {
-							personId = rs.getString(1);
-							sql = "select person_id from person_name where address1 = " + (address1 == null ? "NULL" : address1) + " and address2 = " + (address2 == null ? "NULL" : address2) + " and city_village = " + (city_village == null ? "NULL" : city_village) + " and person_id = " + personId;
-							rs = s.executeQuery(sql);
-							if (rs.next()) {
-								// matched => no need to insert person, use the found patient_id as person_id
-								Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
-								for (SpreadsheetImportTemplateColumn column : columnSet) {
-									column.setGeneratedKey(personId);
-								}
-										
-								importedTables.add("person"); // fake as just imported person
-								importedTables.add("patient"); // fake as just imported patient
-								
-								skip = true;
+							// matched => no need to insert person, use the found patient_id as person_id
+							Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
+							for (SpreadsheetImportTemplateColumn column : columnSet) {
+								column.setGeneratedKey(personId);
 							}
+
+							importedTables.add("person"); // fake as just imported person
+							importedTables.add("patient"); // fake as just imported patient
+							
+							skip = true;
+
 						}
 					}					
 					if (skip)
@@ -763,6 +757,30 @@ public class DatabaseBackend {
 								throw new SpreadsheetImportTemplateValidationException("date is in the future");
 						}
 					}
+				} else if ("patient_identifier".equals(uniqueImport.getTableName())) {
+					Set<SpreadsheetImportTemplateColumn> piColumns = rowData.get(uniqueImport);
+					for (SpreadsheetImportTemplateColumn piColumn : piColumns) {
+						String columnName = piColumn.getColumnName();
+						if (!"identifier".equals(columnName))
+							continue;
+						
+						String pitId = getPrespecifiedPatientIdentifierTypeIdFromPatientIdentifierColumn(piColumn);
+						if (pitId == null)
+							 throw new SpreadsheetImportTemplateValidationException("no prespecified patient identifier type ID");
+						
+						sql = "select format from patient_identifier_type where patient_identifier_type_id = " + pitId;
+						rs = s.executeQuery(sql);
+						if (!rs.next())
+							throw new SpreadsheetImportTemplateValidationException("invalid prespcified patient identifier type ID");
+						
+						String format = rs.getString(1);
+						if (format != null && format.trim().length() != 0) {
+							Pattern pattern = Pattern.compile(format);
+							Matcher matcher = pattern.matcher(piColumn.getValue().toString());
+							if (!matcher.matches())
+								throw new SpreadsheetImportTemplateValidationException("Patient ID is not conforming to patient identifier type");						
+						}
+					}
 				}
 			}
 		} catch (SQLException e) {
@@ -834,6 +852,16 @@ public class DatabaseBackend {
 		for (SpreadsheetImportTemplateColumnPrespecifiedValue prespecifiedColumn : prespecifiedColumns) {
 			String prespecifiedColumnName = prespecifiedColumn.getColumnName();
 			if ("concept_id".equals(prespecifiedColumnName))
+				return prespecifiedColumn.getPrespecifiedValue().getValue();
+		}
+		return null;
+	}
+	
+	private static String getPrespecifiedPatientIdentifierTypeIdFromPatientIdentifierColumn(SpreadsheetImportTemplateColumn piColumn) {
+		Set<SpreadsheetImportTemplateColumnPrespecifiedValue> prespecifiedColumns = piColumn.getColumnPrespecifiedValues();
+		for (SpreadsheetImportTemplateColumnPrespecifiedValue prespecifiedColumn : prespecifiedColumns) {
+			String prespecifiedColumnName = prespecifiedColumn.getColumnName();
+			if ("identifier_type".equals(prespecifiedColumnName))
 				return prespecifiedColumn.getPrespecifiedValue().getValue();
 		}
 		return null;
