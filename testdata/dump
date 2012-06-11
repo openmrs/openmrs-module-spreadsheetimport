@@ -1,0 +1,6 @@
+#!/bin/bash
+MYSQLUSER=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.username | sed s/.*=//`
+MYSQLPASSWORD=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.password | sed s/.*=//`
+MYSQLDATABASE=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.url | sed s/?.*// | sed s@.*/@@`
+TABLES=`echo show tables | mysql --user=$MYSQLUSER --password=$MYSQLPASSWORD $MYSQLDATABASE | grep spreadsheetimport`
+mysqldump --user=$MYSQLUSER --password=$MYSQLPASSWORD $MYSQLDATABASE $TABLES > testdata.sql

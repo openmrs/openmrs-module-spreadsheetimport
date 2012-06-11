@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd" >
+
+<hibernate-mapping package="org.openmrs.module.spreadsheetimport">
+
+	<class name="SpreadsheetImportTemplateColumn" table="spreadsheetimport_template_column">
+
+		<id name="id" type="int" column="id" unsaved-value="0">
+			<generator class="native" />
+		</id>
+
+		<many-to-one name="template" column="template_id" not-null="true" />
+
+        <property name="name" type="java.lang.String" column="name" not-null="true" length="100" />
+
+		<property name="tableDotColumn" type="java.lang.String" column="database_table_dot_column" length="1000" not-null="true"/>
+
+		<property name="datasetIdx" type="java.lang.Integer" column="database_table_dataset_index" not-null="false" />
+		
+		<property name="importIdx" type="java.lang.Integer" column="column_import_index" not-null="true" />
+
+		<property name="disallowDuplicateValue" type="java.lang.Boolean" column="disallow_duplicate_value" not-null="true" />
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplateColumnPrespecifiedValue -->
+		<set name="columnPrespecifiedValues" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_column_id" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplateColumnPrespecifiedValue" />
+		</set>
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplateColumnColumn -->
+		<set name="columnColumnsImportAfter" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_column_id_import_first" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplateColumnColumn" />
+		</set>
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplateColumnColumn -->
+		<set name="columnColumnsImportBefore" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_column_id_import_next" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplateColumnColumn" />
+		</set>
+
+	</class>
+
+</hibernate-mapping>

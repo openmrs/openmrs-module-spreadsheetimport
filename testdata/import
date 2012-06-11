@@ -1,0 +1,9 @@
+#!/bin/bash
+if ! [ -f testdata.sql ]; then
+   echo Please use generate first to generate testdata
+   exit 1
+fi
+MYSQLUSER=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.username | sed s/.*=//`
+MYSQLPASSWORD=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.password | sed s/.*=//`
+MYSQLDATABASE=`cat ~/.OpenMRS/openmrs-runtime.properties | grep connection.url | sed s/?.*// | sed s@.*/@@`
+cat testdata.sql | mysql --user=$MYSQLUSER --password=$MYSQLPASSWORD $MYSQLDATABASE

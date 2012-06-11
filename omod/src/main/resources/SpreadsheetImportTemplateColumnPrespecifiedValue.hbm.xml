@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd" >
+
+<hibernate-mapping package="org.openmrs.module.spreadsheetimport">
+
+	<class name="SpreadsheetImportTemplateColumnPrespecifiedValue" table="spreadsheetimport_template_column_prespecified_value">
+
+		<id name="id" type="int" column="id" unsaved-value="0">
+			<generator class="native" />
+		</id>
+
+		<many-to-one name="column" column="template_column_id" not-null="true" />
+
+		<many-to-one name="prespecifiedValue" column="template_prespecified_value_id" not-null="true" />
+
+		<property name="columnName" type="java.lang.String" column="foreign_key_column_name" length="1000" not-null="true"/>
+
+	</class>
+
+</hibernate-mapping>
+

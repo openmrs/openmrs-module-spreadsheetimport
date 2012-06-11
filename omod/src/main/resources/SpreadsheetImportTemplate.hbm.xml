@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd" >
+
+<hibernate-mapping package="org.openmrs.module.spreadsheetimport">
+
+	<class name="SpreadsheetImportTemplate" table="spreadsheetimport_template">
+
+		<id name="id" type="int" column="id" unsaved-value="0">
+			<generator class="native" />
+		</id>
+
+        <property name="name" type="java.lang.String" column="name" not-null="true" length="100" />
+
+		<property name="description" type="java.lang.String" column="description" length="1000" not-null="true"/>
+
+		<many-to-one name="creator" class="org.openmrs.User" not-null="true" />
+
+		<property name="created" type="java.util.Date" column="date_created" not-null="true"
+			length="19" />
+
+		<many-to-one name="modifiedBy" column="changed_by" class="org.openmrs.User" not-null="false" />
+
+		<property name="modified" type="java.util.Date" column="date_changed" not-null="false"
+			length="19" />
+
+		<!-- Associations -->
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplateColumn -->
+		<set name="columns" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_id" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplateColumn" />
+		</set>
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplatePrespecifiedValue -->
+		<set name="prespecifiedValues" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_id" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplatePrespecifiedValue" />
+		</set>
+
+	</class>
+
+</hibernate-mapping>
+

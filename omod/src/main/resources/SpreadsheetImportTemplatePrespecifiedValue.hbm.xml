@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd" >
+
+<hibernate-mapping package="org.openmrs.module.spreadsheetimport">
+
+	<class name="SpreadsheetImportTemplatePrespecifiedValue" table="spreadsheetimport_template_prespecified_value">
+
+		<id name="id" type="int" column="id" unsaved-value="0">
+			<generator class="native" />
+		</id>
+
+		<many-to-one name="template" column="template_id" not-null="true" />
+
+		<property name="tableDotColumn" type="java.lang.String" column="database_table_dot_column" length="1000" not-null="true"/>
+
+        <property name="value" type="java.lang.String" column="value" not-null="true" length="100" />
+
+		<!-- bi-directional one-to-many association to SpreadsheetImportTemplateColumnPrespecifiedValue -->
+		<set name="columnPrespecifiedValues" lazy="false" inverse="true" cascade="all-delete-orphan" 
+			sort="natural" order-by="id asc">
+			<key column="template_prespecified_value_id" not-null="true" />
+			<one-to-many class="SpreadsheetImportTemplateColumnPrespecifiedValue" />
+		</set>
+		
+	</class>
+
+</hibernate-mapping>

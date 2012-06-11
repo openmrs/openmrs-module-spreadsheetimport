@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+    "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd" >
+
+<hibernate-mapping package="org.openmrs.module.spreadsheetimport">
+
+	<class name="SpreadsheetImportTemplateColumnColumn" table="spreadsheetimport_template_column_column">
+
+		<id name="id" type="int" column="id" unsaved-value="0">
+			<generator class="native" />
+		</id>
+
+		<many-to-one name="columnImportFirst" column="template_column_id_import_first" cascade="save-update" not-null="true" />
+
+		<many-to-one name="columnImportNext" column="template_column_id_import_next" cascade="save-update" not-null="true" />
+
+		<property name="columnName" type="java.lang.String" column="foreign_key_column_name" length="1000" not-null="true"/>
+
+	</class>
+
+</hibernate-mapping>
+
