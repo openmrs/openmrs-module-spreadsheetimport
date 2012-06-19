@@ -156,6 +156,7 @@ public class SpreadsheetImportFormController {
 					if (willAdd) {
 						dateColumn = new SpreadsheetImportTemplateColumn();
 						dateColumn.setTableDotColumn("obs.obs_datetime");
+						dateColumn.setName(field.getField().getName() + " datetime");
 						dateColumn.setTemplate(template);
 					}
 					
@@ -163,7 +164,7 @@ public class SpreadsheetImportFormController {
 				if (willAdd) {
 					template.getColumns().add(column);
 					if (dateColumn != null)
-						template.getColumns().add(column);
+						template.getColumns().add(dateColumn);
 					log.debug("Adding column " + column.getData());
 				}
 			}
