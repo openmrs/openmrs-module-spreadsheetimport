@@ -130,7 +130,7 @@ public class DatabaseBackend {
 				ResultSet rsImportedKeys = dmd.getImportedKeys(null, null, tableName);
 				while (rsImportedKeys.next()) {
 					String columnName = rsImportedKeys.getString("FKCOLUMN_NAME");
-					if (columnNames.contains(columnName)) {
+					if (columnNames.contains(columnName) && "obs".equalsIgnoreCase(tableName) && !"value_coded".equalsIgnoreCase(columnName)) { // hack: only allow obs.value_coded to go through
 						columnNames.remove(columnName);
 					}
 				}
@@ -727,7 +727,8 @@ public class DatabaseBackend {
 
 						if ("value_coded".equals(columnName)) {
 							// verify the answers are the concepts which are possible answers							
-							sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
+							//sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
+							sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
 							if (!rs.next())
 								throw new SpreadsheetImportTemplateValidationException("invalid concept answer for the prespecified concept ID " + conceptId);
