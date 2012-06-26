@@ -749,7 +749,7 @@ public class DatabaseBackend {
 								throw new SpreadsheetImportTemplateValidationException("concept value is not a number");
 							}
 							if (hiAbsolute < value || lowAbsolute > value)
-								throw new SpreadsheetImportTemplateValidationException("concept value is out of range");
+								throw new SpreadsheetImportTemplateValidationException("concept value " + value + " of column " + columnName + " is out of range " + lowAbsolute + " - " + hiAbsolute);
 						} else if ("value_datetime".equals(columnName) || "obs_datetime".equals(columnName)) {
 							// verify datetime is defined and it can not be in the future
 							String value = obsColumn.getValue().toString();
