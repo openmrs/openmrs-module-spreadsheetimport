@@ -4,7 +4,7 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>spreadsheetimport-parent</artifactId>
-	<version>0.5.3-SNAPSHOT</version>
+	<version>0.5.4-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>Spreadsheet Import Module</name>
 	<description>Parent project for Spreadsheet Import Module</description>
