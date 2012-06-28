@@ -776,8 +776,10 @@ public class DatabaseBackend {
 						
 						String format = rs.getString(1);
 						if (format != null && format.trim().length() != 0) {
+							String value = piColumn.getValue().toString();
+							value = value.substring(1, value.length()-1);
 							Pattern pattern = Pattern.compile(format);
-							Matcher matcher = pattern.matcher(piColumn.getValue().toString());
+							Matcher matcher = pattern.matcher(value);
 							if (!matcher.matches())
 								throw new SpreadsheetImportTemplateValidationException("Patient ID is not conforming to patient identifier type");						
 						}
