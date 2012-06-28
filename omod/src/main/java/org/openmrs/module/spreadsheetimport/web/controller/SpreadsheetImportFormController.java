@@ -140,15 +140,16 @@ public class SpreadsheetImportFormController {
 				} else {
 					// getting data type of the concept
 					ConceptDatatype conceptDataType = concept.getDatatype();
-					if (conceptDataType.isNumeric())
+					String hl7Abbrev = conceptDataType.getHl7Abbreviation();
+					if ("NM".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_numeric");
-					else if (conceptDataType.isCoded())
+					else if ("CWE".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_coded");
-					else if (conceptDataType.isBoolean())
+					else if ("BIT".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_boolean");
-					else if (conceptDataType.isDate())
+					else if ("DT".equals(hl7Abbrev) || "TM".equals(hl7Abbrev) || "TS".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_datetime");
-					else if (conceptDataType.isText())
+					else if ("ST".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_text");
 					else
 						willAdd = false; // don't know type
