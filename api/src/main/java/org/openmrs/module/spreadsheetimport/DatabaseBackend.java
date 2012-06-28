@@ -212,7 +212,7 @@ public class DatabaseBackend {
 			// Try 0: if table is person, then look for person_name
 			if ("person".equals(tableName)) {
 				try {
-					rs = s.executeQuery("SELECT `name`, `person_id` primary_key FROM  `providers`");
+					rs = s.executeQuery("SELECT CONCAT(given_name, ' ', family_name) name,  `person_name`.`person_id` primary_key FROM  `users` INNER JOIN `person_name` on `users`.`person_id` = `person_name`.`person_id` INNER JOIN `user_role` on `users`.`user_id` = `user_role`.`user_id` WHERE `user_role`.`role` = 'Provider'");
 				}
 				catch (Exception e) {
 					log.debug(e.toString());
@@ -514,7 +514,7 @@ public class DatabaseBackend {
 								}
 							}
 						}
-						columnNames += ", obs_datetime";
+						columnNames += ", encounter_datetime";
 						columnValues += ",'" + encounterDatetime.toString() + "'";
 						
 						isFirst = false;
