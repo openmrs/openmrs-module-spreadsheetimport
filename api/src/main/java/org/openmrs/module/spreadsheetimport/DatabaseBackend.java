@@ -456,7 +456,7 @@ public class DatabaseBackend {
 						
 											
 						// find matching person name
-						sql = "select person_id from person_name join person where gender " + (gender == null ? "is NULL" : "= " + gender) + " and and birthdate " + (birthdate == null ? "is NULL" : "= " + birthdate) + " and given_name " + (givenName == null ? "is NULL" : "= " + givenName) + " and family_name " + (familyName == null ? "is NULL" : "= " + familyName) + " and middle_name " + (middleName == null ? "is NULL" : "= " + middleName);
+						sql = "select person.person_id from person_name join person where gender " + (gender == null ? "is NULL" : "= " + gender) + " and birthdate " + (birthdate == null ? "is NULL" : "= " + birthdate) + " and given_name " + (givenName == null ? "is NULL" : "= " + givenName) + " and family_name " + (familyName == null ? "is NULL" : "= " + familyName) + " and middle_name " + (middleName == null ? "is NULL" : "= " + middleName);
 						ResultSet rs = s.executeQuery(sql);
 						String personId = null;
 						if (rs.next()) {

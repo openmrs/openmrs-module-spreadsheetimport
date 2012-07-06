@@ -80,4 +80,17 @@
 		</sql>
 	</diff>
 	
+	<diff>
+		<version>0.5.8</version>
+		<author>eHS</author>
+		<date>Jul 6th 2012</date>
+		<description>
+		</description>
+		<sql>
+		   ALTER TABLE  `spreadsheetimport_template` 
+		   		ADD  `encounter` BOOLEAN NULL DEFAULT  '0' AFTER  `description` ,
+				ADD  `target_form` VARCHAR( 255 ) NULL DEFAULT NULL AFTER  `encounter`;			
+		</sql>
+	</diff>
+	
 </sqldiff>
