@@ -668,6 +668,7 @@ public class DatabaseBackend {
 		} catch (Exception e) {
 			log.debug(e.toString());
 			exception = e;
+			throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage()); // TODO: for web debug purpose only, should comment out later
 		}
 		finally {
 			if (s != null) {

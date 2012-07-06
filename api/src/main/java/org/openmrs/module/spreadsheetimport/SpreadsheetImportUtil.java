@@ -62,6 +62,24 @@ public class SpreadsheetImportUtil {
 		
 		List<String> tableNamesSortedByImportIdx = new ArrayList<String>();
 		
+//		// special treatment: when there's a reference to person_id, but 
+//		//  1) the current table is not encounter and 
+//		//  2) there's no column of table person to be added
+//		// then we should still add a person implicitly. This person record will use all default values
+//		boolean hasToAddPerson = false;
+//		for (UniqueImport key : mapUiToCs.keySet()) {
+//			String tableName = key.getTableName();			
+//			if (!("encounter".equals(tableName) || mapTnToUi.keySet().contains("person"))) {
+//				hasToAddPerson = true;
+//				break;
+//			}
+//		}
+//		if (hasToAddPerson) {
+//			UniqueImport ui = new UniqueImport("person", new Integer(-1));
+//			mapTnToUi.put("person", new TreeSet<UniqueImport>());
+//			mapUiToCs.put(ui, new TreeSet<SpreadsheetImportTemplateColumn>());
+//		}
+				
 		// Find requirements
 		for (UniqueImport key : mapUiToCs.keySet()) {
 			String tableName = key.getTableName();
@@ -77,9 +95,9 @@ public class SpreadsheetImportUtil {
 			// provider_id is of type person, but the meaning is different. During import, reference to person is considered patient,
 			// but for provider_id of Encounter, it refers to a health practitioner
 			if ("encounter".equals(tableName)) {
-				mapIkTnToCn.put("person", "provider_id");
+//				mapIkTnToCn.put("person", "provider_id");
 				mapIkTnToCn.put("location", "location_id");
-			}
+			}				
 			
 			// Ignore users tableName 
 			mapIkTnToCn.remove("users");
