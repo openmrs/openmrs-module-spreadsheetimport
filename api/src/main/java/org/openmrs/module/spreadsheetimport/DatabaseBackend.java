@@ -601,11 +601,11 @@ public class DatabaseBackend {
 								log.debug(sql);
 							}	
 							s.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-							ResultSet rs = s.getGeneratedKeys();
-							rs.next();
-							if (!columnGeneratedKey.equals(rs.getString(1))) {
-								throw new SpreadsheetImportUnhandledCaseException();
-							}
+//							ResultSet rs = s.getGeneratedKeys();
+//							rs.next();
+//							if (!columnGeneratedKey.equals(rs.getString(1))) {
+//								throw new SpreadsheetImportUnhandledCaseException();
+//							}
 							importedTables.add("patient");
 						}
 					}
