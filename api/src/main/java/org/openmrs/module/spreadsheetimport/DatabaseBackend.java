@@ -390,6 +390,8 @@ public class DatabaseBackend {
 				
 				 
 				if (isPerson) {
+					boolean isIdentifierExist = false;
+					
 					// SPECIAL TREATMENT 1
 					// if the patient_identifier.identifier is specified and it is linked to a person, then use that person instead
 					// note: patient.patient_id == person.person_id (http://forum.openmrs.org/viewtopic.php?f=2&t=436)				
@@ -399,9 +401,11 @@ public class DatabaseBackend {
 						for (SpreadsheetImportTemplateColumn patientIdentifierColumn : patientIdentifierColumns) {
 							String columnName = patientIdentifierColumn.getColumnName();
 							if ("identifier".equals(columnName)) {
+								isIdentifierExist = true;
+								
 								sql = "select patient_id from patient_identifier where identifier = " + patientIdentifierColumn.getValue();
 								ResultSet rs = s.executeQuery(sql);
-								if (rs.next()) {
+								if (rs.next()) {									
 									String patientId = rs.getString(1);									
 									// no need to insert person, use the found patient_id as person_id
 									Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -412,6 +416,8 @@ public class DatabaseBackend {
 									importedTables.add("person"); // fake as just imported person
 									importedTables.add("patient"); // fake as just imported patient
 									importedTables.add("patient_identifier"); // fake as just imported patient_identifier
+									importedTables.add("person_name"); // fake as just imported person_name
+									importedTables.add("person_address"); // fake as just imported person_address
 									
 									skip = true;
 								}
@@ -423,10 +429,12 @@ public class DatabaseBackend {
 					if (skip)
 						continue;
 					
+					// now, if we proceed to this point, it means patient identifier, if exists, does not match, and in that case, no point to match with person name
+					
 					// SPECIAL TREATMENT 2
 					// if first name, last name, middle name, gender, and birthdate match existing record, then use that record instead
 					UniqueImport personName = new UniqueImport("person_name", null);
-					if (rowData.containsKey(personName)) {						
+					if (rowData.containsKey(personName) && !isIdentifierExist) {						
 						Set<SpreadsheetImportTemplateColumn> personNameColumns = rowData.get(personName);
 						
 						// getting gender, birthdate from person
@@ -468,6 +476,8 @@ public class DatabaseBackend {
 
 							importedTables.add("person"); // fake as just imported person
 							importedTables.add("patient"); // fake as just imported patient
+							importedTables.add("person_name"); // fake as just imported person_name
+							importedTables.add("person_address"); // fake as just imported person_address
 							
 							skip = true;
 

@@ -331,6 +331,8 @@ public class SpreadsheetImportUtil {
 									if ("encounter".equals(column.getTableName())) {						
 										int idx = columnNames.indexOf(column.getName());
 										Cell cell = row.getCell(idx);
+										if (cell == null)											
+											cell = row.createCell(idx);
 										cell.setCellValue(encounterId);
 									}
 								}
