@@ -638,6 +638,12 @@ public class DatabaseBackend {
 						columnValues += ",now()";						
 					}						
 				}
+				
+				// SPECIAL TREATMENT: if this is patient identifier, then set location_id to NULL, to avoid CONSTRAINT `patient_identifier_ibfk_2` FOREIGN KEY (`location_id`) REFERENCES `location` (`location_id`))
+				if (isPatientIdentifier) {
+					columnNames += ", location_id";
+					columnValues += ", NULL";
+				}
 							
 				// creator
 				columnNames += ",creator";
