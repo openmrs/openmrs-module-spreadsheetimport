@@ -636,7 +636,9 @@ public class DatabaseBackend {
 					if (!hasDatetime) {
 						columnNames += ",obs_datetime";
 						columnValues += ",now()";						
-					}						
+					}
+					columnNames += ", date_created";
+					columnValues += ",now()";
 				}
 				
 				// SPECIAL TREATMENT: if this is patient identifier, then set location_id to NULL, to avoid CONSTRAINT `patient_identifier_ibfk_2` FOREIGN KEY (`location_id`) REFERENCES `location` (`location_id`))
