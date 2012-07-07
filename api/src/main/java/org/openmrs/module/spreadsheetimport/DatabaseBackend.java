@@ -388,6 +388,22 @@ public class DatabaseBackend {
 						continue;
 				}
 				
+				// SPECIAL TREATMENT
+				// for observation, if the data to be inserted is empty, then simply skip
+				if (isObservation) {
+					Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
+					for (SpreadsheetImportTemplateColumn column : columnSet) {
+						Object columnValue = column.getValue();
+						if (columnValue.equals("")) {							
+							skip = true;
+							importedTables.add("observation"); // fake as just imported observation, not meaningful, just for consistency purpose
+							break;
+						}
+					}
+					if (skip)
+						continue;
+				}
+				
 				 
 				if (isPerson) {
 					boolean isIdentifierExist = false;
@@ -745,6 +761,10 @@ public class DatabaseBackend {
 							 throw new SpreadsheetImportTemplateValidationException("no prespecified concept ID");
 
 						if ("value_coded".equals(columnName)) {
+							// skip if empty
+							if (obsColumn.getValue().equals(""))
+								continue;
+							
 							// verify the answers are the concepts which are possible answers							
 							//sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
 							sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
@@ -752,8 +772,16 @@ public class DatabaseBackend {
 							if (!rs.next())
 								throw new SpreadsheetImportTemplateValidationException("invalid concept answer for the prespecified concept ID " + conceptId);
 						} else if ("value_text".equals(columnName)) {
-							// verify the number of characters is less than the allowed length
+							// skip if empty
+							if (obsColumn.getValue().equals(""))
+								continue;
+							
+							// verify the number of characters is less than the allowed length							
 						} else if ("value_numeric".equals(columnName)) {
+							// skip if empty
+							if (obsColumn.getValue().equals(""))
+								continue;
+							
 							// verify it's within the range specified in the concept definition
 							sql = "select hi_absolute, low_absolute from concept_numeric where concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
@@ -770,6 +798,10 @@ public class DatabaseBackend {
 							if (hiAbsolute < value || lowAbsolute > value)
 								throw new SpreadsheetImportTemplateValidationException("concept value " + value + " of column " + columnName + " is out of range " + lowAbsolute + " - " + hiAbsolute);
 						} else if ("value_datetime".equals(columnName) || "obs_datetime".equals(columnName)) {
+							// skip if empty
+							if (obsColumn.getValue().equals(""))
+								continue;
+							
 							// verify datetime is defined and it can not be in the future
 							String value = obsColumn.getValue().toString();
 							String date = value.substring(1, value.length()-1);
