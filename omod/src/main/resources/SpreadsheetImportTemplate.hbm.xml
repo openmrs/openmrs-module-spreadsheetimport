@@ -17,7 +17,7 @@
 		
 		<property name="encounter" type="boolean" column="encounter"/>
 		
-		<property name="targetForm" type="java.lang.String" column="target_form" length="1000" not-null="true"/>
+		<property name="targetForm" type="java.lang.String" column="target_form" length="1000" not-null="false"/>
 
 		<many-to-one name="creator" class="org.openmrs.User" not-null="true" />
 
