@@ -295,7 +295,8 @@ public class SpreadsheetImportUtil {
 						if (value != null) {
 							rowHasData = true;
 							column.setValue(value);
-						}
+						} else
+							column.setValue("");
 					}
 				}
 				
