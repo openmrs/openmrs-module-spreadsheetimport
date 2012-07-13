@@ -420,9 +420,15 @@ public class DatabaseBackend {
 								isIdentifierExist = true;
 								
 								sql = "select patient_id from patient_identifier where identifier = " + patientIdentifierColumn.getValue();
+								
+								System.out.println("Searching for existing patient of id " + patientIdentifierColumn.getValue());
+								
 								ResultSet rs = s.executeQuery(sql);
-								if (rs.next()) {									
-									String patientId = rs.getString(1);									
+								if (rs.next()) {
+									String patientId = rs.getString(1);
+									
+									System.out.println("Found patient with patient_id = " + patientId);
+									
 									// no need to insert person, use the found patient_id as person_id
 									Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
 									for (SpreadsheetImportTemplateColumn column : columnSet) {
@@ -679,9 +685,9 @@ public class DatabaseBackend {
 				// Insert tableName
 				sql = "insert into " + uniqueImport.getTableName() + " (" + columnNames + ")" + " values ("
 				        + columnValues + ")";
+				System.out.println(sql);
 				if (log.isDebugEnabled()) {
-					log.debug(sql);
-					System.out.println(sql);
+					log.debug(sql);					
 				}
 			
 				s.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);

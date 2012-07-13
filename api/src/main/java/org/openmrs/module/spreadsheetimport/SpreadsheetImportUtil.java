@@ -97,7 +97,7 @@ public class SpreadsheetImportUtil {
 			if ("encounter".equals(tableName)) {
 //				mapIkTnToCn.put("person", "provider_id");
 				mapIkTnToCn.put("location", "location_id");
-			}				
+			}
 			
 			// Ignore users tableName 
 			mapIkTnToCn.remove("users");
