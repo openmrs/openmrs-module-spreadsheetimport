@@ -81,12 +81,69 @@
 	</diff>
 	
 	<diff>
-		<version>0.5.8</version>
+		<version>0.5.13</version>
 		<author>eHS</author>
 		<date>Jul 6th 2012</date>
 		<description>
 		</description>
 		<sql>
+			CREATE TABLE IF NOT EXISTS `spreadsheetimport_template` (
+			  `id` int(32) NOT NULL auto_increment,
+              `name` varchar(100) NOT NULL,
+			  `description` varchar(1000) NOT NULL,
+			  `creator` int(11) NOT NULL default '0',
+			  `date_created` datetime NOT NULL default '0000-00-00 00:00:00',
+			  `changed_by` int(11) default NULL,
+  			  `date_changed` datetime default NULL,
+			  PRIMARY KEY  (`id`),
+			  KEY `User who wrote this template` (`creator`),			  
+			  KEY `User who changed this template` (`changed_by`),
+			  CONSTRAINT `User who wrote this template` FOREIGN KEY (`creator`) REFERENCES `users` (`user_id`),
+			  CONSTRAINT `User who changed this template` FOREIGN KEY (`changed_by`) REFERENCES `users` (`user_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;			
+		   CREATE TABLE IF NOT EXISTS `spreadsheetimport_template_column` (
+			  `id` int(32) NOT NULL auto_increment,
+			  `template_id` int(32) NOT NULL,
+              `name` varchar(100) NOT NULL,
+              `database_table_dot_column` varchar(1000) NOT NULL,
+              `database_table_dataset_index` int(11) default NULL,
+              `column_import_index` int(32) NOT NULL, 
+              `disallow_duplicate_value` boolean default false not null,
+			  PRIMARY KEY  (`id`),
+			  KEY `Template to which this column belongs` (`template_id`),			  
+			  CONSTRAINT `Template to which this column belongs` FOREIGN KEY (`template_id`) REFERENCES `spreadsheetimport_template` (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;			
+		   CREATE TABLE IF NOT EXISTS `spreadsheetimport_template_prespecified_value` (
+			  `id` int(32) NOT NULL auto_increment,
+			  `template_id` int(32) NOT NULL,
+              `database_table_dot_column` varchar(1000) NOT NULL,
+              `value` varchar(100) NOT NULL,              
+			  PRIMARY KEY  (`id`),
+			  KEY `Template to which this pre-specified value belongs` (`template_id`),			  
+			  CONSTRAINT `Template to which this pre-specified value belongs` FOREIGN KEY (`template_id`) REFERENCES `spreadsheetimport_template` (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;			
+		   CREATE TABLE IF NOT EXISTS `spreadsheetimport_template_column_column` (
+			  `id` int(32) NOT NULL auto_increment,
+			  `template_column_id_import_first` int(32) NOT NULL,
+			  `template_column_id_import_next` int(32) NOT NULL,
+			  `foreign_key_column_name` varchar(1000) NOT NULL,
+			  PRIMARY KEY  (`id`),
+			  KEY `Template column which must be imported first` (`template_column_id_import_first`),			  
+			  KEY `Template column which must be imported next` (`template_column_id_import_next`),			  
+			  CONSTRAINT `Template column which must be imported first` FOREIGN KEY (`template_column_id_import_first`) REFERENCES `spreadsheetimport_template_column` (`id`),
+			  CONSTRAINT `Template column which must be imported next` FOREIGN KEY (`template_column_id_import_next`) REFERENCES `spreadsheetimport_template_column` (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;			
+		   CREATE TABLE IF NOT EXISTS `spreadsheetimport_template_column_prespecified_value` (
+			  `id` int(32) NOT NULL auto_increment,
+			  `template_column_id` int(32) NOT NULL,
+			  `template_prespecified_value_id` int(32) NOT NULL,
+			  `foreign_key_column_name` varchar(1000) NOT NULL,
+			  PRIMARY KEY  (`id`),
+			  KEY `Template column which is being mapped to a pre-specified value` (`template_column_id`),			  
+			  KEY `Pre-specified value which is being mapped to a template column` (`template_prespecified_value_id`),
+			  CONSTRAINT `Template column which is being mapped to a pre-specified value` FOREIGN KEY (`template_column_id`) REFERENCES `spreadsheetimport_template_column` (`id`),
+			  CONSTRAINT `Pre-specifived value which is being mapped to a template column` FOREIGN KEY (`template_prespecified_value_id`) REFERENCES `spreadsheetimport_template_prespecified_value` (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 		   ALTER TABLE  `spreadsheetimport_template` 
 		   		ADD  `encounter` BOOLEAN NULL DEFAULT  '0' AFTER  `description` ,
 				ADD  `target_form` VARCHAR( 255 ) NULL DEFAULT NULL AFTER  `encounter`;			
