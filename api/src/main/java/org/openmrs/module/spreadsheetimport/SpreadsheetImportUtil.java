@@ -100,18 +100,20 @@ public class SpreadsheetImportUtil {
 			if ("encounter".equals(tableName)) {
 //				mapIkTnToCn.put("person", "provider_id"); 			// UPDATE: provider_id is no longer a foreign key for encounter
 				mapIkTnToCn.put("location", "location_id");
+				mapIkTnToCn.put("form", "form_id");
 				
-				// if this is an encounter-based import, then pre-specify the form_id for the encounter
-				// 1. search for encounter column
-				SpreadsheetImportTemplateColumn encounterColumn = mapUiToCs.get(key).iterator().next();
-				// 2. prespecify form 				
-				SpreadsheetImportTemplatePrespecifiedValue v = new SpreadsheetImportTemplatePrespecifiedValue();
-				v.setTemplate(template);
-				v.setTableDotColumn("form.form_id");
-				v.setValue(template.getTargetForm());
-				SpreadsheetImportTemplateColumnPrespecifiedValue cpv = new SpreadsheetImportTemplateColumnPrespecifiedValue();
-				cpv.setColumn(encounterColumn);
-				cpv.setPrespecifiedValue(v);
+//				// if this is an encounter-based import, then pre-specify the form_id for the encounter
+//				// 1. search for encounter column
+//				SpreadsheetImportTemplateColumn encounterColumn = mapUiToCs.get(key).iterator().next();
+//				// 2. prespecify form 				
+//				SpreadsheetImportTemplatePrespecifiedValue v = new SpreadsheetImportTemplatePrespecifiedValue();
+//				v.setTemplate(template);
+//				v.setTableDotColumn("form.form_id");
+//				v.setValue(template.getTargetForm());
+//				SpreadsheetImportTemplateColumnPrespecifiedValue cpv = new SpreadsheetImportTemplateColumnPrespecifiedValue();
+//				cpv.setColumn(encounterColumn);
+//				cpv.setPrespecifiedValue(v);
+//				prespecifiedValues.add(v);
 			}
 			
 			// Ignore users tableName 
