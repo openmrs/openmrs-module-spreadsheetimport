@@ -294,10 +294,9 @@ public class SpreadsheetImportUtil {
 								break;
 							case Cell.CELL_TYPE_FORMULA:
 							case Cell.CELL_TYPE_NUMERIC:
-								if (DateUtil.isCellDateFormatted(cell)) {									
+								if (DateUtil.isCellDateFormatted(cell)) {
 									java.util.Date date = cell.getDateCellValue();
-									java.sql.Date sqlDate = new java.sql.Date(date.getTime());
-									value = "'" + sqlDate.toString() + "'";
+									value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
 								} else {
 									value = cell.getNumericCellValue();
 								}

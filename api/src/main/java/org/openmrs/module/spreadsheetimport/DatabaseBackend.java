@@ -21,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -811,7 +812,7 @@ public class DatabaseBackend {
 							// verify datetime is defined and it can not be in the future
 							String value = obsColumn.getValue().toString();
 							String date = value.substring(1, value.length()-1);
-							if (Date.valueOf(date).after(new Date(System.currentTimeMillis())))
+							if (Timestamp.valueOf(date).after(new Timestamp(System.currentTimeMillis())))
 								throw new SpreadsheetImportTemplateValidationException("date is in the future");
 						}
 					}
