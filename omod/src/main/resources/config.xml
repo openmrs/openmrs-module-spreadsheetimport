@@ -5,7 +5,7 @@
 	<!-- Base Module Properties -->
 	<id>spreadsheetimport</id>
 	<name>Spreadsheet Import Module</name>
-	<version>0.5.13</version>
+	<version>0.5.14</version>
 	<package>org.openmrs.module.@MODULE_ID@</package>
 	<author>Misha Koshelev/Stephen Lorenz</author>
 	<description>

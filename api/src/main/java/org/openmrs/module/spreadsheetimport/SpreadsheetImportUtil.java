@@ -86,17 +86,32 @@ public class SpreadsheetImportUtil {
 			
 			Map<String, String> mapIkTnToCn = DatabaseBackend.getMapOfImportedKeyTableNameToColumnNamesForTable(tableName);
 			
+			if ("patient_identifier".equals(tableName))
+				mapIkTnToCn.put("patient", "patient_id");
+			
 			// encounter_id is optional, so it won't be part of mapIkTnToCn
 			// if we need to create new encounter for this row, then force it to be here
 			if (template.isEncounter() && "obs".equals(tableName))
 				mapIkTnToCn.put("encounter", "encounter_id");
-
+			
 			// we need special treatment for provider_id of Encounter
 			// provider_id is of type person, but the meaning is different. During import, reference to person is considered patient,
 			// but for provider_id of Encounter, it refers to a health practitioner
 			if ("encounter".equals(tableName)) {
-//				mapIkTnToCn.put("person", "provider_id");
+//				mapIkTnToCn.put("person", "provider_id"); 			// UPDATE: provider_id is no longer a foreign key for encounter
 				mapIkTnToCn.put("location", "location_id");
+				
+				// if this is an encounter-based import, then pre-specify the form_id for the encounter
+				// 1. search for encounter column
+				SpreadsheetImportTemplateColumn encounterColumn = mapUiToCs.get(key).iterator().next();
+				// 2. prespecify form 				
+				SpreadsheetImportTemplatePrespecifiedValue v = new SpreadsheetImportTemplatePrespecifiedValue();
+				v.setTemplate(template);
+				v.setTableDotColumn("form.form_id");
+				v.setValue(template.getTargetForm());
+				SpreadsheetImportTemplateColumnPrespecifiedValue cpv = new SpreadsheetImportTemplateColumnPrespecifiedValue();
+				cpv.setColumn(encounterColumn);
+				cpv.setPrespecifiedValue(v);
 			}
 			
 			// Ignore users tableName 
