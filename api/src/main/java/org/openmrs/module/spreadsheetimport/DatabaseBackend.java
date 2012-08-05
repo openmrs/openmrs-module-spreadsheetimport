@@ -776,8 +776,13 @@ public class DatabaseBackend {
 							//sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
 							sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
-							if (!rs.next())
-								throw new SpreadsheetImportTemplateValidationException("invalid concept answer for the prespecified concept ID " + conceptId);
+							if (!rs.next()) {
+								sql = "select name from concept_name where concept_id = " + conceptId;
+								rs = s.executeQuery(sql);
+								rs.next();
+								String conceptName = rs.getString(1);
+								throw new SpreadsheetImportTemplateValidationException("invalid concept answer for the prespecified concept ID " + conceptName);
+							}
 						} else if ("value_text".equals(columnName)) {
 							// skip if empty
 							if (obsColumn.getValue().equals(""))
