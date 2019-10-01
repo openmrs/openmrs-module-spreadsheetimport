@@ -619,7 +619,7 @@ public class DatabaseBackend {
 							importedTables.contains("person") &&
 							!importedTables.contains("patient")) {
 
-							sql = "insert into patient (patient_id, creator) values (" + columnGeneratedKey + ", " + Context.getAuthenticatedUser().getId() + ")";
+							sql = "insert into patient (patient_id, creator,date_created) values (" + columnGeneratedKey + ", " + Context.getAuthenticatedUser().getId()+ ", now()" + ")";
 							if (log.isDebugEnabled()) {
 								log.debug(sql);
 							}	
