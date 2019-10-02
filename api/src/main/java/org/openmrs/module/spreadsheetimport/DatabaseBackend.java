@@ -210,11 +210,22 @@ public class DatabaseBackend {
 			rsPrimaryKeys.close();
 			
 			ResultSet rs = null;
-			
-			// Try 0: if table is person, then look for person_name
+
+			// Try if table is person, then look for person_name
 			if ("person".equals(tableName)) {
 				try {
 					rs = s.executeQuery("SELECT CONCAT(given_name, ' ', family_name) name,  `person_name`.`person_id` primary_key FROM  `users` INNER JOIN `person_name` on `users`.`person_id` = `person_name`.`person_id` INNER JOIN `user_role` on `users`.`user_id` = `user_role`.`user_id` WHERE `user_role`.`role` = 'Provider'");
+				}
+				catch (Exception e) {
+					log.debug(e.toString());
+				}
+			}
+
+			// Try if table is concept
+			// concept_name TODO: provide a means to filter only concepts to be used. This slows down page rendering for a large concept dictionary
+			if (rs == null && "concept".equals(tableName)) {
+				try {
+					rs = s.executeQuery("select name,concept_id from concept_name where locale='en' and concept_name_type='FULLY_SPECIFIED' and concept_id in(select distinct concept_id from obs)");
 				}
 				catch (Exception e) {
 					log.debug(e.toString());
@@ -368,6 +379,7 @@ public class DatabaseBackend {
 				boolean isEncounter = "encounter".equals(tableName);
 				boolean isPerson = "person".equals(tableName);
 				boolean isPatientIdentifier = "patient_identifier".equals(tableName);
+				boolean isPersonAttribute = "person_attribute".equals(tableName);
 				boolean isObservation = "obs".equals(tableName);
 				
 				boolean skip = false;
@@ -800,7 +812,7 @@ public class DatabaseBackend {
 							sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
 							if (!rs.next()) {
-								sql = "select name from concept_name where concept_id = " + conceptId;
+								sql = "select name from concept_name where locale='en' and concept_id = " + conceptId;
 								rs = s.executeQuery(sql);
 								rs.next();
 								String conceptName = rs.getString(1);
