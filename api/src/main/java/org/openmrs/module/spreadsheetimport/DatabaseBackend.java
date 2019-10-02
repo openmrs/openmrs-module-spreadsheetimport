@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.spreadsheetimport.objects.NameValue;
 
@@ -681,6 +682,12 @@ public class DatabaseBackend {
 					columnNames += ",uuid";
 					columnValues += ",uuid()";
 				}
+				// add date created
+				ResultSet dateCreatedColumn = dmd.getColumns(null, null, uniqueImport.getTableName(), "date_created");
+				if (dateCreatedColumn.next()) {
+					columnNames += ",date_created";
+					columnValues += ",now()";
+				}
 				rsColumns.close();
 				
 				// Insert tableName
@@ -839,12 +846,19 @@ public class DatabaseBackend {
 						
 						String format = rs.getString(1);
 						if (format != null && format.trim().length() != 0) {
-							String value = piColumn.getValue().toString();
-							value = value.substring(1, value.length()-1);
+							// detect if value is numeric and try formatting the cell value to string
+							String value = "";
+							if (piColumn.getValue() instanceof Number) {
+								Double val = (Double) piColumn.getValue();
+								value = String.valueOf(val.intValue());
+							} else {
+								value = piColumn.getValue().toString();
+							}
 							Pattern pattern = Pattern.compile(format);
 							Matcher matcher = pattern.matcher(value);
-							if (!matcher.matches())
-								throw new SpreadsheetImportTemplateValidationException("Patient ID is not conforming to patient identifier type");						
+							if (!matcher.matches()) {
+								throw new SpreadsheetImportTemplateValidationException("Patient ID does not conform to the specified patient identifier type format");
+							}
 						}
 					}
 				}
