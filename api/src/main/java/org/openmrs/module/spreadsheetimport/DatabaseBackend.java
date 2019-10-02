@@ -420,10 +420,18 @@ public class DatabaseBackend {
 							String columnName = patientIdentifierColumn.getColumnName();
 							if ("identifier".equals(columnName)) {
 								isIdentifierExist = true;
+
+								String patientIdentifierString = "";
+								if (patientIdentifierColumn.getValue() instanceof Number) {
+									Double val = (Double) patientIdentifierColumn.getValue();
+									patientIdentifierString = String.valueOf(val.intValue());
+								} else {
+									patientIdentifierString = patientIdentifierColumn.getValue().toString();
+								}
 								
-								sql = "select patient_id from patient_identifier where identifier = " + patientIdentifierColumn.getValue();
+								sql = "select patient_id from patient_identifier where identifier = " + patientIdentifierString;
 								
-								System.out.println("Searching for existing patient of id " + patientIdentifierColumn.getValue());
+								System.out.println("Searching for existing patient of id " + patientIdentifierString);
 								
 								ResultSet rs = s.executeQuery(sql);
 								if (rs.next()) {
@@ -557,7 +565,15 @@ public class DatabaseBackend {
 					
 					// Check for duplicates
 					if (column.getDisallowDuplicateValue()) {
-						sql = "select " + column.getColumnName() + " from " + column.getTableName() + " where " + column.getColumnName() + " = " + column.getValue();
+						String ColValue = "";
+						if (column.getValue() instanceof Number) {
+							Double val = (Double) column.getValue();
+							ColValue = String.valueOf(val.intValue());
+						} else {
+							ColValue = column.getValue().toString();
+						}
+
+						sql = "select " + column.getColumnName() + " from " + column.getTableName() + " where " + column.getColumnName() + " = " + ColValue;
 						if (log.isDebugEnabled()) {
 							log.debug(sql);
 							System.out.println(sql);
@@ -842,7 +858,7 @@ public class DatabaseBackend {
 						sql = "select format from patient_identifier_type where patient_identifier_type_id = " + pitId;
 						rs = s.executeQuery(sql);
 						if (!rs.next())
-							throw new SpreadsheetImportTemplateValidationException("invalid prespcified patient identifier type ID");
+							throw new SpreadsheetImportTemplateValidationException("invalid prespecified patient identifier type ID");
 						
 						String format = rs.getString(1);
 						if (format != null && format.trim().length() != 0) {
