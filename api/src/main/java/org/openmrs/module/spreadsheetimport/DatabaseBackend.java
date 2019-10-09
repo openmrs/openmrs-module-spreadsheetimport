@@ -355,6 +355,7 @@ public class DatabaseBackend {
 		String sql = null;
 		
 		String encounterId = null;
+		String patientId = null;
 		
 		try {
 			
@@ -448,7 +449,7 @@ public class DatabaseBackend {
 								
 								ResultSet rs = s.executeQuery(sql);
 								if (rs.next()) {
-									String patientId = rs.getString(1);
+									patientId = rs.getString(1);
 									
 									System.out.println("Found patient with patient_id = " + patientId);
 									
@@ -731,7 +732,48 @@ public class DatabaseBackend {
 					columnValues += ",now()";
 				}
 				rsColumns.close();
-				
+
+				// attempt to add visit
+				if (isEncounter) {
+					String encStartDatetime = encounterDate.concat(" ").concat("00:00:00");
+					String encEndDatetime = encounterDate.concat(" ").concat("23:59:59");
+					String getVisitQry = "SELECT visit_id from visit where date_started BETWEEN ':startDatetime' and ':endDatetime' and patient_id=:patientID";
+					getVisitQry = getVisitQry.replace(":startDatetime", encStartDatetime);
+					getVisitQry = getVisitQry.replace(":endDatetime", encEndDatetime);
+					getVisitQry = getVisitQry.replace(":patientID", patientId);
+					String existingVisitId = null;
+					//System.out.println("Get visit query: " + getVisitQry);
+
+					ResultSet rs = s.executeQuery(getVisitQry);
+					if (rs.next()) {
+						existingVisitId = rs.getString(1);
+						rs.close();
+					} else {
+						String insertVisitQry = "insert into visit(patient_id, visit_type_id, date_started, date_stopped, creator, date_created, uuid) \n" +
+								"    values(:patientID,1,':dateStarted',':dateStopped',:creator,now(),uuid())";
+						//replace date started string
+						insertVisitQry = insertVisitQry.replace(":patientID", patientId);
+						insertVisitQry = insertVisitQry.replace(":dateStarted", encStartDatetime);
+						insertVisitQry = insertVisitQry.replace(":dateStopped", encEndDatetime);
+						insertVisitQry = insertVisitQry.replace(":creator", Context.getAuthenticatedUser().getId().toString());
+						//System.out.println("Insert visit query: " + insertVisitQry);
+
+						s.executeUpdate(insertVisitQry, Statement.RETURN_GENERATED_KEYS);
+						ResultSet visitRs = s.getGeneratedKeys();
+						visitRs.next();
+						existingVisitId = visitRs.getString(1);
+						visitRs.close();
+
+
+					}
+					if (existingVisitId != null) {
+						//System.out.println("Adding visit columns to query ");
+						columnNames += ",visit_id ";
+						columnValues += "," + existingVisitId + " ";
+					}
+
+				}
+
 				// Insert tableName
 				sql = "insert into " + uniqueImport.getTableName() + " (" + columnNames + ")" + " values ("
 				        + columnValues + ")";

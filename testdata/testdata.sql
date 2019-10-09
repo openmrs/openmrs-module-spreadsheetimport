@@ -146,6 +146,8 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `spreadsheetimport_template_prespecified_value`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+# noinspection SqlNoDataSourceInspection
+
 CREATE TABLE `spreadsheetimport_template_prespecified_value` (
   `id` int(32) NOT NULL AUTO_INCREMENT,
   `template_id` int(32) NOT NULL,
