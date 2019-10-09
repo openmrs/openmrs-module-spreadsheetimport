@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.ResultSet;
 import java.sql.SQLSyntaxErrorException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +44,10 @@ public class SpreadsheetImportUtil {
 	
 	/** Logger for this class and subclasses */
 	protected static final Log log = LogFactory.getLog(SpreadsheetImportUtil.class);
-	
+
+	private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+
+
 	/**
 	 * Resolve template dependencies: 1. Generate pre-specified values which are necessary for
 	 * template to be imported. 2. Create import indices which describe the order in which columns
@@ -257,6 +261,7 @@ public class SpreadsheetImportUtil {
 		// Extra column names?
 		List<String> columnNamesOnlyInSheet = new Vector<String>();
 		columnNamesOnlyInSheet.addAll(columnNames);
+
 		columnNamesOnlyInSheet.removeAll(template.getColumnNamesAsList());
 		if (columnNamesOnlyInSheet.isEmpty() == false) {
 			messages.add("Extra column names present, these will not be processed: " + toString(columnNamesOnlyInSheet));
@@ -269,6 +274,21 @@ public class SpreadsheetImportUtil {
 				skipThisRow = false;
 			} else {
 				boolean rowHasData = false;
+				// attempt to process the extra encounter_datetime
+				String encounterDateColumn = "Encounter Date";
+				String rowEncDate = null;
+				int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
+
+				if (encDateColumnIdx >= 0) {
+					Cell encDateCell = row.getCell(encDateColumnIdx);
+
+					if (DateUtil.isCellDateFormatted(encDateCell)) {
+						java.util.Date encDate = encDateCell.getDateCellValue();
+						rowEncDate = DATE_FORMAT.format(encDate);// "'" + new java.sql.Timestamp(encDate.getTime()).toString() + "'";
+					} else {
+						rowEncDate = encDateCell.getRichStringCellValue().toString();
+					}
+				}
 				Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData = template
 				        .getMapOfUniqueImportToColumnSetSortedByImportIdx();
 				
@@ -340,12 +360,13 @@ public class SpreadsheetImportUtil {
 					Exception exception = null;
 					try {
 						DatabaseBackend.validateData(rowData);
-						String encounterId = DatabaseBackend.importData(rowData, rollbackTransaction);
+						String encounterId = DatabaseBackend.importData(rowData, rowEncDate, rollbackTransaction);
 						if (encounterId != null) {
 							for (UniqueImport uniqueImport : rowData.keySet()) {
 								Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
 								for (SpreadsheetImportTemplateColumn column : columnSet) {
-									if ("encounter".equals(column.getTableName())) {						
+									//Write generated encounter_id in the Encounter ID column
+									if ("encounter".equals(column.getTableName())) {
 										int idx = columnNames.indexOf(column.getName());
 										Cell cell = row.getCell(idx);
 										if (cell == null)											

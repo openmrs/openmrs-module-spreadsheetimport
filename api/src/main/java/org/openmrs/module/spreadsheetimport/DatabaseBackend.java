@@ -225,7 +225,7 @@ public class DatabaseBackend {
 			// concept_name TODO: provide a means to filter only concepts to be used. This slows down page rendering for a large concept dictionary
 			if (rs == null && "concept".equals(tableName)) {
 				try {
-					rs = s.executeQuery("select name,concept_id from concept_name where locale='en' and concept_name_type='FULLY_SPECIFIED' and concept_id in(select distinct concept_id from obs)");
+					rs = s.executeQuery("select concept_id, concept_id from concept_name where locale='en' and concept_name_type='FULLY_SPECIFIED' and concept_id in(select distinct concept_id from obs) order by concept_id asc");
 				}
 				catch (Exception e) {
 					log.debug(e.toString());
@@ -347,6 +347,7 @@ public class DatabaseBackend {
 	}
 	
 	public static String importData(Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData,
+	                              String encounterDate,
 	                              boolean rollbackTransaction) throws Exception {
 		Connection conn = null;
 		Statement s = null;
@@ -371,10 +372,10 @@ public class DatabaseBackend {
 			s = conn.createStatement();
 			
 			List<String> importedTables = new ArrayList<String>();
-			
+
 			// Import
 			for (UniqueImport uniqueImport : rowData.keySet()) {
-				
+
 				String tableName = uniqueImport.getTableName();
 				boolean isEncounter = "encounter".equals(tableName);
 				boolean isPerson = "person".equals(tableName);
@@ -554,22 +555,30 @@ public class DatabaseBackend {
 						// find encounter_datetime based on observation date time
 						java.sql.Date encounterDatetime = new java.sql.Date(System.currentTimeMillis());
 						Set<UniqueImport> uniqueImports = rowData.keySet();
-						for (UniqueImport u : uniqueImports) {
-							if ("obs".equals(u.getTableName())) {
-								Set<SpreadsheetImportTemplateColumn> obsColumns = rowData.get(u);
-								for (SpreadsheetImportTemplateColumn obsColumn : obsColumns) {
-									if ("obs_datetime".equals(obsColumn.getColumnName())) {
-										String obsColumnValue = obsColumn.getValue().toString();
-										obsColumnValue = obsColumnValue.substring(1, obsColumnValue.length()-1);
-										Date obsColumnValueDate = java.sql.Date.valueOf(obsColumnValue);
-										if (obsColumnValueDate.before(encounterDatetime))
-											encounterDatetime = obsColumnValueDate;
+
+						if (encounterDate != null && !encounterDate.equals("")) {
+							columnNames += ", encounter_datetime";
+							columnValues += ",'" + encounterDate + "'";
+						} else {
+							for (UniqueImport u : uniqueImports) {
+								if ("obs".equals(u.getTableName())) {
+									Set<SpreadsheetImportTemplateColumn> obsColumns = rowData.get(u);
+									for (SpreadsheetImportTemplateColumn obsColumn : obsColumns) {
+										if ("obs_datetime".equals(obsColumn.getColumnName())) {
+											String obsColumnValue = obsColumn.getValue().toString();
+											obsColumnValue = obsColumnValue.substring(1, obsColumnValue.length()-1);
+											Date obsColumnValueDate = java.sql.Date.valueOf(obsColumnValue);
+											if (obsColumnValueDate.before(encounterDatetime))
+												encounterDatetime = obsColumnValueDate;
+										}
 									}
 								}
 							}
+
+							columnNames += ", encounter_datetime";
+							columnValues += ",'" + encounterDatetime.toString() + "'";
 						}
-						columnNames += ", encounter_datetime";
-						columnValues += ",'" + encounterDatetime.toString() + "'";
+
 						
 						isFirst = false;
 						break;
@@ -678,16 +687,21 @@ public class DatabaseBackend {
 				
 				// SPECIAL TREATMENT: if this is observation, then check for column obs_datetime. If not available, then use current time
 				if (isObservation) {
-					boolean hasDatetime = false;
-					for (SpreadsheetImportTemplateColumn column : columnSet) {
-						if ("obs_datetime".equals(column.getColumnName())) {
-							hasDatetime = true;
-							break;
-						}
-					}
-					if (!hasDatetime) {
+					if (encounterDate != null && !encounterDate.equals("")) {
 						columnNames += ",obs_datetime";
-						columnValues += ",now()";						
+						columnValues += ",'" + encounterDate + "'";
+					} else {
+						boolean hasDatetime = false;
+						for (SpreadsheetImportTemplateColumn column : columnSet) {
+							if ("obs_datetime".equals(column.getColumnName())) {
+								hasDatetime = true;
+								break;
+							}
+						}
+						if (!hasDatetime) {
+							columnNames += ",obs_datetime";
+							columnValues += ",now()";
+						}
 					}
 					columnNames += ", date_created";
 					columnValues += ",now()";
@@ -712,7 +726,7 @@ public class DatabaseBackend {
 				}
 				// add date created
 				ResultSet dateCreatedColumn = dmd.getColumns(null, null, uniqueImport.getTableName(), "date_created");
-				if (dateCreatedColumn.next()) {
+				if (dateCreatedColumn.next() && !columnNames.contains("date_created")) {
 					columnNames += ",date_created";
 					columnValues += ",now()";
 				}
@@ -740,6 +754,7 @@ public class DatabaseBackend {
 				importedTables.add(uniqueImport.getTableName());
 			}
 		} catch (SQLSyntaxErrorException e) {
+			e.printStackTrace();
 			throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage());
 		} catch (Exception e) {
 			log.debug(e.toString());
@@ -809,7 +824,8 @@ public class DatabaseBackend {
 							
 							// verify the answers are the concepts which are possible answers							
 							//sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
-							sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
+							//TODO: any concept should be permitted as answer to a question. Commenting the parts below for now
+							/*sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
 							if (!rs.next()) {
 								sql = "select name from concept_name where locale='en' and concept_id = " + conceptId;
@@ -817,7 +833,7 @@ public class DatabaseBackend {
 								rs.next();
 								String conceptName = rs.getString(1);
 								throw new SpreadsheetImportTemplateValidationException("invalid concept answer for the prespecified concept ID " + conceptName);
-							}
+							}*/
 						} else if ("value_text".equals(columnName)) {
 							// skip if empty
 							if (obsColumn.getValue().equals(""))
