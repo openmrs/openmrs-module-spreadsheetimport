@@ -13,6 +13,11 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.spreadsheetimport.objects.NameValue;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Date;
@@ -23,8 +28,6 @@ import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -34,12 +37,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.openmrs.api.context.Context;
-import org.openmrs.module.spreadsheetimport.objects.NameValue;
 
 /**
  *
@@ -777,6 +774,9 @@ public class DatabaseBackend {
 				// Insert tableName
 				sql = "insert into " + uniqueImport.getTableName() + " (" + columnNames + ")" + " values ("
 				        + columnValues + ")";
+
+				// attempt to replace 'NULL' with NULL
+				sql = sql.replace("'NULL'", "NULL");
 				System.out.println(sql);
 				if (log.isDebugEnabled()) {
 					log.debug(sql);					
