@@ -926,6 +926,7 @@ public class DatabaseBackend {
 							 throw new SpreadsheetImportTemplateValidationException("no prespecified patient identifier type ID");
 						
 						sql = "select format from patient_identifier_type where patient_identifier_type_id = " + pitId;
+						System.out.println("Identifier sql: " + sql);
 						rs = s.executeQuery(sql);
 						if (!rs.next())
 							throw new SpreadsheetImportTemplateValidationException("invalid prespecified patient identifier type ID");
@@ -934,7 +935,10 @@ public class DatabaseBackend {
 						if (format != null && format.trim().length() != 0) {
 							// detect if value is numeric and try formatting the cell value to string
 							String value = "";
-							if (piColumn.getValue() instanceof Number) {
+							if (piColumn.getValue() instanceof Integer) {
+								Integer val = (Integer) piColumn.getValue();
+								value = String.valueOf(val);
+							} else if (piColumn.getValue() instanceof Double) {
 								Double val = (Double) piColumn.getValue();
 								value = String.valueOf(val.intValue());
 							} else {

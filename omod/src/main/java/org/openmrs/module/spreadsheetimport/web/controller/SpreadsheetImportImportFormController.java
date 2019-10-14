@@ -13,33 +13,21 @@
  */
 package org.openmrs.module.spreadsheetimport.web.controller;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.spreadsheetimport.DbImportUtil;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplate;
-import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplateColumn;
-import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplateColumnPrespecifiedValue;
-import org.openmrs.module.spreadsheetimport.SpreadsheetImportUtil;
-import org.openmrs.module.spreadsheetimport.UniqueImport;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.web.WebConstants;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -107,7 +95,7 @@ public class SpreadsheetImportImportFormController {
 			rollbackTransaction = false;
 		}
 		
-		File returnedFile = SpreadsheetImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+		String returnedFile = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
 		boolean succeeded = (returnedFile != null);
 
 		String messageString = "";
@@ -119,15 +107,6 @@ public class SpreadsheetImportImportFormController {
 		}
 		if (succeeded) {
 			messageString += "Success!";
-			try {	    	
-			      InputStream is = new FileInputStream(returnedFile);
-			      response.setContentType("application/ms-excel");
-			      response.addHeader("content-disposition", "inline;filename=" + returnedFile.getName());
-			      IOUtils.copy(is, response.getOutputStream());			      
-			      response.flushBuffer();
-			    } catch (IOException ex) {
-			      log.info("Error writing file to output stream");
-			    }
 		}
 				
 		if (!messageString.isEmpty()) {

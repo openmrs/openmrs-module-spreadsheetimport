@@ -13,29 +13,28 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.sql.ResultSet;
-import java.sql.SQLSyntaxErrorException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.Vector;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.Vector;
 
 /**
  *
@@ -227,6 +226,7 @@ public class SpreadsheetImportUtil {
 		
 		// Open file
 		Workbook wb = WorkbookFactory.create(file.getInputStream());
+
 		Sheet sheet;
 		if (!StringUtils.hasText(sheetName)) {
 			sheet = wb.getSheetAt(0);
@@ -306,7 +306,7 @@ public class SpreadsheetImportUtil {
 							column.setValue("");
 							continue;
 						}
-						
+
 						switch (cell.getCellType()) {
 							case Cell.CELL_TYPE_BOOLEAN:
 								value = new Boolean(cell.getBooleanCellValue());
