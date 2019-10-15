@@ -390,7 +390,7 @@ public class DatabaseBackend {
 					Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
 					for (SpreadsheetImportTemplateColumn column : columnSet) {
 						Object columnValue = column.getValue();
-						if (!columnValue.equals("")) {
+						if (!columnValue.equals("") && columnValue != null) {
 							column.setGeneratedKey(columnValue.toString());
 							skip = true;
 							importedTables.add("encounter"); // fake as just imported encounter
@@ -433,7 +433,10 @@ public class DatabaseBackend {
 								isIdentifierExist = true;
 
 								String patientIdentifierString = "";
-								if (patientIdentifierColumn.getValue() instanceof Number) {
+								if (patientIdentifierColumn.getValue() instanceof Integer) {
+									Integer val = (Integer) patientIdentifierColumn.getValue();
+									patientIdentifierString = String.valueOf(val.intValue());
+								} else if (patientIdentifierColumn.getValue() instanceof Double) {
 									Double val = (Double) patientIdentifierColumn.getValue();
 									patientIdentifierString = String.valueOf(val.intValue());
 								} else {
@@ -585,7 +588,10 @@ public class DatabaseBackend {
 					// Check for duplicates
 					if (column.getDisallowDuplicateValue()) {
 						String ColValue = "";
-						if (column.getValue() instanceof Number) {
+						if (column.getValue() instanceof Integer) {
+							Integer val = (Integer) column.getValue();
+							ColValue = String.valueOf(val.intValue());
+						} else if (column.getValue() instanceof Double) {
 							Double val = (Double) column.getValue();
 							ColValue = String.valueOf(val.intValue());
 						} else {
@@ -777,6 +783,8 @@ public class DatabaseBackend {
 
 				// attempt to replace 'NULL' with NULL
 				sql = sql.replace("'NULL'", "NULL");
+				//replace empty space with ',NULL,'
+				sql = sql.replace(",,",",NULL,");
 				System.out.println(sql);
 				if (log.isDebugEnabled()) {
 					log.debug(sql);					

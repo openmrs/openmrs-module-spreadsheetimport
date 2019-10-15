@@ -16,16 +16,10 @@ package org.openmrs.module.spreadsheetimport;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.validator.GenericValidator;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.openmrs.api.context.Context;
-import org.springframework.util.StringUtils;
+import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -229,16 +223,26 @@ public class DbImportUtil {
             return null;
         }
 
+
+
         Connection conn = null;
         Statement s = null;
         String sql = null;
         List<String> columnNames = new Vector<String>();
-        Map<String, Integer> columnPosition = new HashMap<String, Integer>();
+
+        Map<Integer, String> tableToTemplateMap = new HashMap<Integer, String>();
+        tableToTemplateMap.put(10,"demographics");
+        tableToTemplateMap.put(9, "hiv_patient_program");
+        tableToTemplateMap.put(4, "hiv_enrollment_encounter");
+        tableToTemplateMap.put(5, "triage_encounter");
+        tableToTemplateMap.put(7, "hiv_testing_initial_encounter");
+
+        String tableToProcess = tableToTemplateMap.get(template.getId());
 
 
         try {
 
-            System.out.println("Attempting to read from the migration database!========");
+            System.out.println("Attempting to read from the migration database!");
 
             // Connect to db
             Class.forName("com.mysql.jdbc.Driver").newInstance();
@@ -254,13 +258,11 @@ public class DbImportUtil {
             s = conn.createStatement();
 
             DatabaseMetaData dmd = conn.getMetaData();
-            ResultSet rsColumns = dmd.getColumns("data_migration", null, "demographics", null);
+            ResultSet rsColumns = dmd.getColumns("data_migration", null, tableToProcess, null);
 
             while (rsColumns.next()) {
                 String colName = rsColumns.getString("COLUMN_NAME");
-                int colPos = Integer.valueOf(rsColumns.getString("ORDINAL_POSITION"));
                 columnNames.add(colName);
-                columnPosition.put(colName, colPos);
             }
 
             rsColumns.close();
@@ -286,16 +288,26 @@ public class DbImportUtil {
         columnNamesOnlyInSheet.addAll(columnNames);
 
         columnNamesOnlyInSheet.removeAll(template.getColumnNamesAsList());
+
+        // AO
+        // remove the extra encounter date column provided
+        if (columnNamesOnlyInSheet.contains("Encounter Date")) {
+            columnNamesOnlyInSheet.remove("Encounter Date");
+        }
+
         if (columnNamesOnlyInSheet.isEmpty() == false) {
             messages.add("Extra column names present, these will not be processed: " + toString(columnNamesOnlyInSheet));
         }
 
         // Process rows
-        // testing with demographics table in migration database
-        String query = "select `First Name`, `DOB`,`Middle Name`,`Last Name`,Sex,UPN,County,`Clinic Number` from data_migration.demographics";
+
+
+        String tableName = tableToTemplateMap.get(template.getId());
+        String query = "select * from data_migration.:tableName";
+        query = query.replace(":tableName", tableName);
+        System.out.println("Resulting table name query: " + query);
         ResultSet rs = s.executeQuery(query);
-        boolean skipThisRow = true;
-        //for (Row row : sheet) {
+
         while (rs.next()) {
 
             boolean rowHasData = false;
@@ -321,6 +333,8 @@ public class DbImportUtil {
                 for (SpreadsheetImportTemplateColumn column : columnSet) {
 
                     Object value = null;
+                    System.out.print("Column Name: " + column.getName());
+
 
                     if (GenericValidator.isInt(rs.getString(column.getName()))) {
                         value = rs.getInt(column.getName());
@@ -332,7 +346,10 @@ public class DbImportUtil {
                         java.util.Date date = rs.getDate(rs.getString(column.getName()));
                         value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                     } else {
-                        value = "'" + rs.getString(column.getName()) + "'";
+                        value = rs.getString(column.getName());
+                        if (value !=null && !value.equals("")) {
+                            value = "'" + rs.getString(column.getName()) + "'";
+                        }
                     }
                     // check for empty cell (new Encounter)
                     if (value == null) {
@@ -344,7 +361,7 @@ public class DbImportUtil {
                     if (value != null) {
                         rowHasData = true;
                         column.setValue(value);
-                        System.out.println("Importing column with value: " + value);
+                        System.out.println(", value: " + value);
                     } else
                         column.setValue("");
                 }
@@ -375,7 +392,7 @@ public class DbImportUtil {
                 try {
                     DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, rollbackTransaction);
-                    if (encounterId != null) {
+                    /*if (encounterId != null) {
                         for (UniqueImport uniqueImport : rowData.keySet()) {
                             Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
                             for (SpreadsheetImportTemplateColumn column : columnSet) {
@@ -385,7 +402,7 @@ public class DbImportUtil {
                                 }
                             }
                         }
-                    }
+                    }*/
                 } catch (SpreadsheetImportTemplateValidationException e) {
                     messages.add("Validation failed: " + e.getMessage());
                     return null;
