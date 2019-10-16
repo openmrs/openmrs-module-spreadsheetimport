@@ -510,7 +510,7 @@ public class DatabaseBackend {
 						
 											
 						// find matching person name
-						sql = "select person.person_id from person_name join person where gender " + (gender == null ? "is NULL" : "= " + gender) + " and birthdate " + (birthdate == null ? "is NULL" : "= " + birthdate) + " and given_name " + (givenName == null ? "is NULL" : "= " + givenName) + " and family_name " + (familyName == null ? "is NULL" : "= " + familyName) + " and middle_name " + (middleName == null ? "is NULL" : "= " + middleName);
+						sql = "select person.person_id from person_name join person where gender " + (gender == null || gender.equals("") ? "is NULL" : "= " + gender) + " and birthdate " + (birthdate == null || birthdate.equals("") ? "is NULL" : "= " + birthdate) + " and given_name " + (givenName == null || givenName.equals("") ? "is NULL" : "= " + givenName) + " and family_name " + (familyName == null || familyName.equals("") ? "is NULL" : "= " + familyName) + " and middle_name " + (middleName == null || middleName.equals("") ? "is NULL" : "= " + middleName);
 						ResultSet rs = s.executeQuery(sql);
 						String personId = null;
 						if (rs.next()) {
@@ -940,7 +940,7 @@ public class DatabaseBackend {
 							throw new SpreadsheetImportTemplateValidationException("invalid prespecified patient identifier type ID");
 						
 						String format = rs.getString(1);
-						if (format != null && format.trim().length() != 0) {
+						if (format != null && format.trim().length() != 0 && piColumn.getValue() != null && !piColumn.getValue().equals("") ) {
 							// detect if value is numeric and try formatting the cell value to string
 							String value = "";
 							if (piColumn.getValue() instanceof Integer) {

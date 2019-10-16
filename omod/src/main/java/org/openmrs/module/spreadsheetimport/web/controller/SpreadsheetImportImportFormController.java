@@ -122,7 +122,7 @@ public class SpreadsheetImportImportFormController {
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("hiv_enrollment_encounter"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
 
-			if (successfulProcessMsg != null) {
+			/*if (successfulProcessMsg != null) {
 				// step 3: process triage encounter
 				template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("triage_encounter"));
 				successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
@@ -154,7 +154,7 @@ public class SpreadsheetImportImportFormController {
 			} else {
 				messages.add("Error processing HIV enrollment encounters");
 
-			}
+			}*/
 
 		} else {
 			messages.add("Error processing patient demographics");
