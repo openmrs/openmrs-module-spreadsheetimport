@@ -360,7 +360,7 @@ public class SpreadsheetImportUtil {
 					Exception exception = null;
 					try {
 						DatabaseBackend.validateData(rowData);
-						String encounterId = DatabaseBackend.importData(rowData, rowEncDate, rollbackTransaction);
+						/*String encounterId = DatabaseBackend.importData(rowData, rowEncDate, rollbackTransaction);
 						if (encounterId != null) {
 							for (UniqueImport uniqueImport : rowData.keySet()) {
 								Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -375,14 +375,14 @@ public class SpreadsheetImportUtil {
 									}
 								}
 							}
-						}
+						}*/
 					} catch (SpreadsheetImportTemplateValidationException e) {
 						messages.add("Validation failed: " + e.getMessage());
 						return null;
-					} catch (SpreadsheetImportDuplicateValueException e) {
+					} /*catch (SpreadsheetImportDuplicateValueException e) {
 						messages.add("found duplicate value for column " + e.getColumn().getName() + " with value " + e.getColumn().getValue());
 						return null;
-					} catch (SpreadsheetImportSQLSyntaxException e) {
+					}*/ catch (SpreadsheetImportSQLSyntaxException e) {
 						messages.add("SQL syntax error: \"" + e.getSqlErrorMessage() + "\".<br/>Attempted SQL Statement: \"" + e.getSqlStatement() + "\"");
 						return null;
 					} catch (Exception e) {
