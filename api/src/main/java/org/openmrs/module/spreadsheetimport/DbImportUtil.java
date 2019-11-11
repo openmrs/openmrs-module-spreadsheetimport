@@ -237,18 +237,18 @@ public class DbImportUtil {
         List<String> columnNames = new Vector<String>();
 
         Map<Integer, String> tableToTemplateMap = new HashMap<Integer, String>();
-        tableToTemplateMap.put(10,"demographics");
-        tableToTemplateMap.put(9, "hiv_patient_program");
+        tableToTemplateMap.put(9, "tr_program_enrollment");
         tableToTemplateMap.put(8, "tr_hiv_enrollment");
-        tableToTemplateMap.put(5, "triage_encounter");
-        tableToTemplateMap.put(7, "hiv_testing_initial_encounter");
+        tableToTemplateMap.put(11, "tr_triage");
+
+
 
         String tableToProcess = tableToTemplateMap.get(template.getId());
 
 
         try {
 
-            System.out.println("Attempting to read from the migration database!");
+            //System.out.println("Attempting to read from the migration database!");
 
             // Connect to db
             Class.forName("com.mysql.jdbc.Driver").newInstance();
@@ -314,6 +314,7 @@ public class DbImportUtil {
         //System.out.println("Resulting table name query: " + query);
         ResultSet rs = s.executeQuery(query);
 
+        int recordCount = 0;
         while (rs.next()) {
 
             boolean rowHasData = false;
@@ -409,11 +410,14 @@ public class DbImportUtil {
 
 
 
-            if (rowHasData) {
+            if (rowHasData && patientId != null) {
                 Exception exception = null;
                 try {
                     DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, rollbackTransaction);
+                    recordCount++;
+                    System.out.println(":: Completed processing record :: " + recordCount + " for template " + template.getName());
+
                     /*if (encounterId != null) {
                         for (UniqueImport uniqueImport : rowData.keySet()) {
                             Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -626,6 +630,7 @@ public class DbImportUtil {
             String query = "select * from migration_tr.tr_demographics";
 
             ResultSet rs = s.executeQuery(query);
+            int recordCount = 0;
 
             while (rs.next()) {
                 String sql = null;
@@ -910,6 +915,8 @@ public class DbImportUtil {
 
                     }
                 }
+                recordCount++;
+                System.out.println(":: Completed Processing record :: " + recordCount + " in demographics dataset");
             }
 
         } catch (IllegalAccessException e) {

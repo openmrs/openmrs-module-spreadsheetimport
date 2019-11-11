@@ -99,6 +99,8 @@ public class SpreadsheetImportImportFormController {
 
 		Map<String, Integer> tableToTemplateMap = new HashMap<String, Integer>();
 		tableToTemplateMap.put("tr_hiv_enrollment", 8);
+		tableToTemplateMap.put("tr_triage", 11);
+		tableToTemplateMap.put("tr_program_enrollment", 9);
 
 		/**
 		 *  attempt nested processing of data
@@ -112,16 +114,33 @@ public class SpreadsheetImportImportFormController {
 		// custom logic to process patient demographics. the spreadsheet module coe
 		// skips processing of other identifiers and other person related data once
 		// an associated person is found.
-		String successfulProcessMsg = null;
+		String successfulProcessMsg = "Success";
 
-		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
+		/*successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
 
 		if (successfulProcessMsg != null) {
 			// step 2: process hiv enrollment encounter
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_enrollment"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
 
+		}*/
+
+		if (successfulProcessMsg != null) {
+			// step 3: process hiv program history
+			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_program_enrollment"));
+			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+
 		}
+
+	/*	template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
+		successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+
+		if (successfulProcessMsg != null) {
+			// step 4: process triage
+			*//*template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
+			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+*//*
+		}*/
 
 
 		// step 1: set template to demographics

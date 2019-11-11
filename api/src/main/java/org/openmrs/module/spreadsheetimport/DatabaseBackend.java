@@ -455,13 +455,13 @@ public class DatabaseBackend {
 								
 								sql = "select patient_id from patient_identifier where identifier = " + patientIdentifierString + " and identifier_type=16";
 								
-								System.out.println("Searching for existing patient of id " + patientIdentifierString);
+								//System.out.println("Searching for existing patient of id " + patientIdentifierString);
 								
 								ResultSet rs = s.executeQuery(sql);
 								if (rs.next()) {
 									patientId = rs.getString(1);
 									
-									System.out.println("Found patient with patient_id = " + patientId);
+									//System.out.println("Found patient with patient_id = " + patientId);
 
 									// no need to insert person, use the found patient_id as person_id
 									// TODO: can this be modified to allow for inserting multiple identifiers?
@@ -633,7 +633,7 @@ public class DatabaseBackend {
 					}
 					columnNames += column.getColumnName();
 					columnValues += column.getValue().toString();
-					
+
 				}
 							
 				// Data from pre-specified values
@@ -648,15 +648,15 @@ public class DatabaseBackend {
 					if (columnPrespecifiedValue.getColumnName() != null && columnPrespecifiedValue.getColumnName().equals("patient_id")) {
 						columnNames += "patient_id";
 						columnValues += patientId;
+
 					} else if (columnPrespecifiedValue.getColumnName() != null && columnPrespecifiedValue.getColumnName().equals("person_id")) {
 						columnNames += "person_id";
 						columnValues += patientId;
+
 					} else {
 						columnNames += columnPrespecifiedValue.getColumnName();
 						columnValues += columnPrespecifiedValue.getPrespecifiedValue().getValue();
 					}
-
-					//System.out.println("Here in add columns: " + columnPrespecifiedValue.getColumnName() + ", " + columnPrespecifiedValue.getPrespecifiedValue().getValue());
 
 				}
 			
@@ -700,6 +700,7 @@ public class DatabaseBackend {
 					
 					// Add columns
 					for (String columnName : mapPrimaryKeyColumnNameToGeneratedKey.keySet()) {
+						System.out.println("Adding column: " + columnName);
 						if (isFirst)
 							isFirst = false;
 						else {
@@ -809,7 +810,7 @@ public class DatabaseBackend {
 				sql = sql.replace("'NULL'", "NULL");
 				//replace empty space with ',NULL,'
 				sql = sql.replace(",,",",NULL,");
-				System.out.println("Query to execute: " + sql);
+				//System.out.println("Query to execute: " + sql);
 				if (log.isDebugEnabled()) {
 					log.debug(sql);					
 				}
@@ -946,7 +947,7 @@ public class DatabaseBackend {
 							
 							// verify datetime is defined and it can not be in the future
 							String value = obsColumn.getValue().toString();
-							System.out.println("Date value: " + value);
+							//System.out.println("Date value: " + value);
 							String date = value + " 00:00:00"; // this is required for timestamp
 							/*if (Timestamp.valueOf(value).after(new Timestamp(System.currentTimeMillis())))
 								throw new SpreadsheetImportTemplateValidationException("date is in the future");*/
