@@ -324,6 +324,9 @@ public class DbImportUtil {
             String patientIdColVal = rs.getString(mainIdentifierColumn);
             String patientId = null;
 
+            /**
+             * Extract values of grouped observations here
+             */
             // ==========================
             String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=16";
 

@@ -828,6 +828,12 @@ public class DatabaseBackend {
 				
 				importedTables.add(uniqueImport.getTableName());
 			}
+
+			// process grouped observation
+
+
+
+
 		} catch (SQLSyntaxErrorException e) {
 			e.printStackTrace();
 			throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage());
