@@ -1,5 +1,6 @@
 package org.openmrs.module.spreadsheetimport;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -9,7 +10,8 @@ import java.util.Map;
  */
 public class GroupedObservations {
     private Integer groupConceptId;
-    private Map<String, DatasetColumn> datasetColumns; // key is column name, value is DatasetColumn object
+    private Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>(); // key is column name, value is DatasetColumn object
+    private boolean hasData;
 
     public GroupedObservations() {
     }
@@ -39,5 +41,13 @@ public class GroupedObservations {
         if (!datasetColumns.containsKey(key)) {
             datasetColumns.put(key, column);
         }
+    }
+
+    public boolean hasData() {
+        return hasData;
+    }
+
+    public void setHasData(boolean hasData) {
+        this.hasData = hasData;
     }
 }

@@ -240,6 +240,7 @@ public class DbImportUtil {
         tableToTemplateMap.put(9, "tr_program_enrollment");
         tableToTemplateMap.put(8, "tr_hiv_enrollment");
         tableToTemplateMap.put(11, "tr_triage");
+        tableToTemplateMap.put(12, "tr_hts_initial");
 
 
 
@@ -314,6 +315,12 @@ public class DbImportUtil {
         //System.out.println("Resulting table name query: " + query);
         ResultSet rs = s.executeQuery(query);
 
+        // prototype grouped obs
+        List<GroupedObservations> gObs = null;
+        if (template.getId() == 12) {
+            HTSGroupedObservations observations = new HTSGroupedObservations();
+            gObs = observations.getColumnDefinitions();
+        }
         int recordCount = 0;
         while (rs.next()) {
 
@@ -327,6 +334,44 @@ public class DbImportUtil {
             /**
              * Extract values of grouped observations here
              */
+            if (gObs != null) {
+                for (GroupedObservations gO : gObs) {
+                    boolean groupHasData = false;
+                    for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                        String k = e.getKey();
+                        DatasetColumn v = e.getValue();
+
+                        Object value = null;
+
+                        if (GenericValidator.isInt(rs.getString(k))) {
+                            value = rs.getInt(k);
+                        } else if (GenericValidator.isFloat(rs.getString(k))) {
+                            value = rs.getDouble(k);
+                        } else if (GenericValidator.isDouble(rs.getString(k))) {
+                            value = rs.getDouble(k);
+                        } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
+                            java.util.Date date = rs.getDate(rs.getString(k));
+                            value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                        } else {
+                            value = rs.getString(k);
+                            if (value != null && !value.equals("")) {
+                                value = "'" + rs.getString(k) + "'";
+                            }
+                        }
+
+                        if (value != null) {
+                            v.setValue(value.toString());
+                            if (!groupHasData) {
+                                groupHasData = true;
+                                gO.setHasData(true);
+                            }
+                        }
+
+                        System.out.println("Grouped obs values: " + k + ", value: " + value);
+
+                    }
+                }
+            }
             // ==========================
             String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=16";
 
@@ -417,7 +462,7 @@ public class DbImportUtil {
                 Exception exception = null;
                 try {
                     DatabaseBackend.validateData(rowData);
-                    String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, rollbackTransaction);
+                    String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction);
                     recordCount++;
                     System.out.println(":: Completed processing record :: " + recordCount + " for template " + template.getName());
 
