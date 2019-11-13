@@ -42,7 +42,9 @@ import java.util.regex.Pattern;
  */
 public class DatabaseBackend {
 
-    /** Logger for this class and subclasses */
+    /**
+     * Logger for this class and subclasses
+     */
     protected static final Log log = LogFactory.getLog(SpreadsheetImportUtil.class);
 
     /**
@@ -812,141 +814,153 @@ public class DatabaseBackend {
                 if (isEncounter) {
                     encounterId = rs.getString(1);
                     // process grouped obs
-                    for (GroupedObservations gObs : groupedObservations) {
-                        System.out.println(":::::::::::::::::::::: BEGIN :::::::::::::::::::::::::::::::::: ");
-                        System.out.println(" Has Data: " + gObs.hasData());
+                    if (groupedObservations != null && !groupedObservations.isEmpty()) {
+                        for (GroupedObservations gObs : groupedObservations) {
+                            System.out.println(":::::::::::::::::::::: BEGIN :::::::::::::::::::::::::::::::::: ");
+                            System.out.println(" Has Data: " + gObs.hasData());
 
-                        if (gObs.hasData()) {
-                            Integer groupConceptId = gObs.getGroupConceptId();
-                            String obsGroupId = null;
+                            if (gObs.hasData()) {
+                                Integer groupConceptId = gObs.getGroupConceptId();
+                                String obsGroupId = null;
 
-                            columnNames = "";
-                            columnValues = "";
-                            columnNames += "date_created";
-                            columnValues += "now()";
-                            columnNames += ",person_id";
-                            columnValues += "," + patientId;
-                            columnNames += ",encounter_id";
-                            columnValues += "," + encounterId;
-                            columnNames += ",obs_datetime";
-                            columnValues += ",'" + encounterDate + "'";
-                            columnNames += ",creator";
-                            columnValues += "," + Context.getAuthenticatedUser().getId();
-                            columnNames += ",uuid";
-                            columnValues += ",uuid()";
-                            columnNames += ",concept_id";
-                            columnValues += "," + groupConceptId;
+                                columnNames = "";
+                                columnValues = "";
+                                columnNames += "date_created";
+                                columnValues += "now()";
+                                columnNames += ",person_id";
+                                columnValues += "," + patientId;
+                                columnNames += ",encounter_id";
+                                columnValues += "," + encounterId;
+                                columnNames += ",obs_datetime";
+                                columnValues += ",'" + encounterDate + "'";
+                                columnNames += ",creator";
+                                columnValues += "," + Context.getAuthenticatedUser().getId();
+                                columnNames += ",uuid";
+                                columnValues += ",uuid()";
+                                columnNames += ",concept_id";
+                                columnValues += "," + groupConceptId;
 
-                            sql = "insert into obs (" + columnNames + ")" + " values ("
-                                    + columnValues + ")";
-                            System.out.println("Generated obs group qry: " + sql);
+                                sql = "insert into obs (" + columnNames + ")" + " values ("
+                                        + columnValues + ")";
+                                System.out.println("Generated obs group qry: " + sql);
 
-                            Statement grpConceptSt = conn.createStatement();
-                            grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-                            ResultSet grpConceptRs = grpConceptSt.getGeneratedKeys();
-                            grpConceptRs.next();
-                            obsGroupId = grpConceptRs.getString(1);
-                            grpConceptRs.close();
+                                Statement grpConceptSt = conn.createStatement();
+                                grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                                ResultSet grpConceptRs = grpConceptSt.getGeneratedKeys();
+                                grpConceptRs.next();
+                                obsGroupId = grpConceptRs.getString(1);
+                                grpConceptRs.close();
 
-                            for (Map.Entry<String, DatasetColumn> e : gObs.getDatasetColumns().entrySet()) {
-                                // we only want entries
+                                for (Map.Entry<String, DatasetColumn> e : gObs.getDatasetColumns().entrySet()) {
+                                    // we only want entries
 
-                                DatasetColumn column = e.getValue();
-                                System.out.println("Group obs val: " + column.getValue());
-                                if (column.getValue() != null && !column.getValue().equals("")) {
+                                    DatasetColumn column = e.getValue();
+                                    System.out.println("Group obs val: " + column.getValue());
+                                    if (column.getValue() != null && !column.getValue().equals("")) {
 
-                                    columnNames = "";
-                                    columnValues = "";
-                                    columnNames += "date_created";
-                                    columnValues += "now()";
-                                    columnNames += ",person_id";
-                                    columnValues += "," + patientId;
-                                    columnNames += ",encounter_id";
-                                    columnValues += "," + encounterId;
-                                    columnNames += ",obs_datetime";
-                                    columnValues += ",'" + encounterDate + "'";
-                                    columnNames += ",creator";
-                                    columnValues += "," + Context.getAuthenticatedUser().getId();
-                                    columnNames += ",uuid";
-                                    columnValues += ",uuid()";
-                                    columnNames += ",concept_id";
-                                    columnValues += "," + column.getQuestionConceptId();
-                                    columnNames += ",obs_group_id";
-                                    columnValues += "," + obsGroupId;
+                                        columnNames = "";
+                                        columnValues = "";
+                                        columnNames += "date_created";
+                                        columnValues += "now()";
+                                        columnNames += ",person_id";
+                                        columnValues += "," + patientId;
+                                        columnNames += ",encounter_id";
+                                        columnValues += "," + encounterId;
+                                        columnNames += ",obs_datetime";
+                                        columnValues += ",'" + encounterDate + "'";
+                                        columnNames += ",creator";
+                                        columnValues += "," + Context.getAuthenticatedUser().getId();
+                                        columnNames += ",uuid";
+                                        columnValues += ",uuid()";
+                                        columnNames += ",concept_id";
+                                        columnValues += "," + column.getQuestionConceptId();
+                                        columnNames += ",obs_group_id";
+                                        columnValues += "," + obsGroupId;
 
-                                    if (column.getQuestionConceptDatatype().equals("value_coded")) {
-                                        columnNames += ",value_coded";
-                                        columnValues += "," + column.getValue();
-                                    } else if (column.getQuestionConceptDatatype().equals("value_text")) {
-                                        columnNames += ",value_text";
-                                        columnValues += "," + column.getValue();
-                                    } else if (column.getQuestionConceptDatatype().equals("value_datetime")) {
-                                        columnNames += ",value_datetime";
-                                        columnValues += "," + column.getValue();
-                                    } else if (column.getQuestionConceptDatatype().equals("value_numeric")) {
-                                        columnNames += ",value_numeric";
-                                        columnValues += "," + column.getValue();
+                                        if (column.getQuestionConceptDatatype().equals("value_coded")) {
+                                            columnNames += ",value_coded";
+                                            columnValues += "," + column.getValue();
+                                        } else if (column.getQuestionConceptDatatype().equals("value_text")) {
+                                            columnNames += ",value_text";
+                                            columnValues += "," + column.getValue();
+                                        } else if (column.getQuestionConceptDatatype().equals("value_datetime")) {
+                                            columnNames += ",value_datetime";
+                                            columnValues += "," + column.getValue();
+                                        } else if (column.getQuestionConceptDatatype().equals("value_numeric")) {
+                                            columnNames += ",value_numeric";
+                                            columnValues += "," + column.getValue();
+                                        }
+
+                                        sql = "insert into obs (" + columnNames + ")" + " values ("
+                                                + columnValues + ")";
+
+                                        System.out.println("Generated obs qry: " + sql);
+
+                                        grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                                        ResultSet obsRs = grpConceptSt.getGeneratedKeys();
+                                        obsRs.close();
+
                                     }
 
-                                    sql = "insert into obs (" + columnNames + ")" + " values ("
-                                            + columnValues + ")";
-
-                                    System.out.println("Generated obs qry: " + sql);
-
-                                    grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-                                    ResultSet obsRs = grpConceptSt.getGeneratedKeys();
-                                    obsRs.close();
-
                                 }
-
                             }
+                            System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
+
                         }
-                        System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
-
-                    }
-                }
-                rs.close();
-
-                importedTables.add(uniqueImport.getTableName());
-            }
-
-            // process grouped observation
-
-
-        } catch (SQLSyntaxErrorException e) {
-            e.printStackTrace();
-            throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage());
-        } catch (Exception e) {
-            log.debug(e.toString());
-            e.printStackTrace();
-            exception = e;
-            throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage()); // TODO: for web debug purpose only, should comment out later
-        } finally {
-            if (s != null) {
-                try {
-                    s.close();
-                } catch (Exception e) {
                 }
             }
-            if (conn != null) {
-                if (rollbackTransaction) {
-                    conn.rollback();
-                } else {
-                    conn.commit();
-                }
-                try {
-                    conn.close();
-                } catch (Exception e) {
-                }
-            }
+            rs.close();
+
+            importedTables.add(uniqueImport.getTableName());
         }
 
-        if (exception != null) {
-            throw exception;
+        // process grouped observation
+
+
+    } catch(
+    SQLSyntaxErrorException e)
+
+    {
+        e.printStackTrace();
+        throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage());
+    } catch(
+    Exception e)
+
+    {
+        log.debug(e.toString());
+        e.printStackTrace();
+        exception = e;
+        throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage()); // TODO: for web debug purpose only, should comment out later
+    } finally
+
+    {
+        if (s != null) {
+            try {
+                s.close();
+            } catch (Exception e) {
+            }
         }
+        if (conn != null) {
+            if (rollbackTransaction) {
+                conn.rollback();
+            } else {
+                conn.commit();
+            }
+            try {
+                conn.close();
+            } catch (Exception e) {
+            }
+        }
+    }
+
+        if(exception !=null)
+
+    {
+        throw exception;
+    }
 
         return encounterId;
-    }
+}
 
     public static void validateData(Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData) throws SQLException, SpreadsheetImportTemplateValidationException {
         Connection conn = null;
@@ -985,7 +999,7 @@ public class DatabaseBackend {
                             // verify the answers are the concepts which are possible answers
                             //sql = "select answer_concept from concept_answer join concept_name on concept_answer.answer_concept = concept_name.concept_id where concept_name.name = '" + obsColumn.getValue() + "' and concept_answer.concept_id = '" + conceptId + "'";
                             //TODO: any concept should be permitted as answer to a question. Commenting the parts below for now
-							/*sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
+                            /*sql = "select answer_concept from concept_answer where answer_concept = '" + obsColumn.getValue() + "' and concept_id = '" + conceptId + "'";
 							rs = s.executeQuery(sql);
 							if (!rs.next()) {
 								sql = "select name from concept_name where locale='en' and concept_id = " + conceptId;

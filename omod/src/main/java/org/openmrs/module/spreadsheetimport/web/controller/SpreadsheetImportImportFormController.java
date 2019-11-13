@@ -115,9 +115,9 @@ public class SpreadsheetImportImportFormController {
 		// custom logic to process patient demographics. the spreadsheet module coe
 		// skips processing of other identifiers and other person related data once
 		// an associated person is found.
-		String successfulProcessMsg = "Success";
+		String successfulProcessMsg = null;
 
-		/*successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
+		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
 
 		if (successfulProcessMsg != null) {
 			// step 2: process hiv enrollment encounter
@@ -131,7 +131,7 @@ public class SpreadsheetImportImportFormController {
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_program_enrollment"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
 
-		}*/
+		}
 
 		if (successfulProcessMsg != null) {
 			// step 4: process HTS

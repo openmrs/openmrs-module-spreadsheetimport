@@ -15,7 +15,9 @@ public class HTSGroupedObservations implements DatasetGroupedObservations {
         test1.setGroupConceptId(164410);
 
         DatasetColumn testKitName = new DatasetColumn(164962, "value_coded");
+        DatasetColumn test2KitName = new DatasetColumn(164962, "value_coded");
         DatasetColumn testLotNo = new DatasetColumn(164964, "value_text");
+        DatasetColumn test2LotNo = new DatasetColumn(164964, "value_text");
         DatasetColumn testKitExpiry = new DatasetColumn(162502, "value_datetime");
         DatasetColumn test2KitExpiry = new DatasetColumn(162501, "value_datetime");
         DatasetColumn testResult = new DatasetColumn(1040, "value_coded");
@@ -35,8 +37,8 @@ public class HTSGroupedObservations implements DatasetGroupedObservations {
 
         // add columns
         test2.addColumn("Test_2_Final_Result", test2Result);
-        test2.addColumn("Test_2_Kit_Name", testKitName);
-        test2.addColumn("Test_2_Lot_Number", testLotNo);
+        test2.addColumn("Test_2_Kit_Name", test2KitName);
+        test2.addColumn("Test_2_Lot_Number", test2LotNo);
         test2.addColumn("Test_2_Expiry_Date", test2KitExpiry);
 
         return Arrays.asList(test1, test2);
