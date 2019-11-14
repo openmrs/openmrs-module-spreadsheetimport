@@ -122,21 +122,21 @@ public class SpreadsheetImportImportFormController {
 		if (successfulProcessMsg != null) {
 			// step 2: process hiv enrollment encounter
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_enrollment"));
-			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 
 		}
 
 		if (successfulProcessMsg != null) {
 			// step 3: process hiv program history
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_program_enrollment"));
-			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 
 		}
 
 		if (successfulProcessMsg != null) {
 			// step 4: process HTS
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_initial"));
-			successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
+			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 
 		}
 

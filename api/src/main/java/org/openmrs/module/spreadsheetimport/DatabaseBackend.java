@@ -816,8 +816,8 @@ public class DatabaseBackend {
                     // process grouped obs
                     if (groupedObservations != null && !groupedObservations.isEmpty()) {
                         for (GroupedObservations gObs : groupedObservations) {
-                            System.out.println(":::::::::::::::::::::: BEGIN :::::::::::::::::::::::::::::::::: ");
-                            System.out.println(" Has Data: " + gObs.hasData());
+                            //System.out.println(":::::::::::::::::::::: BEGIN :::::::::::::::::::::::::::::::::: ");
+                            //System.out.println(" Has Data: " + gObs.hasData());
 
                             if (gObs.hasData()) {
                                 Integer groupConceptId = gObs.getGroupConceptId();
@@ -842,7 +842,7 @@ public class DatabaseBackend {
 
                                 sql = "insert into obs (" + columnNames + ")" + " values ("
                                         + columnValues + ")";
-                                System.out.println("Generated obs group qry: " + sql);
+                                //System.out.println("Generated obs group qry: " + sql);
 
                                 Statement grpConceptSt = conn.createStatement();
                                 grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
@@ -855,7 +855,7 @@ public class DatabaseBackend {
                                     // we only want entries
 
                                     DatasetColumn column = e.getValue();
-                                    System.out.println("Group obs val: " + column.getValue());
+                                    //System.out.println("Group obs val: " + column.getValue());
                                     if (column.getValue() != null && !column.getValue().equals("")) {
 
                                         columnNames = "";
@@ -894,7 +894,7 @@ public class DatabaseBackend {
                                         sql = "insert into obs (" + columnNames + ")" + " values ("
                                                 + columnValues + ")";
 
-                                        System.out.println("Generated obs qry: " + sql);
+                                        //System.out.println("Generated obs qry: " + sql);
 
                                         grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
                                         ResultSet obsRs = grpConceptSt.getGeneratedKeys();
@@ -904,7 +904,7 @@ public class DatabaseBackend {
 
                                 }
                             }
-                            System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
+                            //System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
 
                         }
                 }

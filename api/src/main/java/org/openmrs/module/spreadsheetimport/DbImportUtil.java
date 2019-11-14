@@ -221,16 +221,8 @@ public class DbImportUtil {
         return result;
     }
 
-    public static String importTemplate(SpreadsheetImportTemplate template, MultipartFile file, String sheetName,
+    public static String importTemplate(SpreadsheetImportTemplate template,
                                         List<String> messages, boolean rollbackTransaction) throws Exception {
-
-        if (file.isEmpty()) {
-            messages.add("file must not be empty");
-            return null;
-        }
-
-
-
         Connection conn = null;
         Statement s = null;
         String sql = null;
@@ -367,15 +359,28 @@ public class DbImportUtil {
                             }
                         }
 
-                        System.out.println("Grouped obs values: " + k + ", value: " + value);
+                        //System.out.println("Grouped obs values: " + k + ", value: " + value);
 
                     }
                 }
             }
             // ==========================
-            String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=16";
-
+            String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
+            String mainPtIdType = null;
+            String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + IQCARE_PERSON_PK_ID_TYPE + "'";
             Statement getPatientSt = conn.createStatement();
+            ResultSet mainIdentifieryType = getPatientSt.executeQuery(mainIdQry);
+            if (mainIdentifieryType.next()) {
+                mainPtIdType = mainIdentifieryType.getString(1);
+
+            }
+            if (mainIdentifieryType != null) {
+                mainIdentifieryType.close();
+            }
+
+            String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=" + mainPtIdType;
+
+
             ResultSet getPatientRs = getPatientSt.executeQuery(patientIdsql);
             if (getPatientRs.next()) {
                 patientId = getPatientRs.getString(1);

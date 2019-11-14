@@ -42,6 +42,7 @@
     	</table>
     	<p />
 		<td><input type="submit" value="Delete"/></td>
+		<td><input type="button" value="Migrate Datasets" onclick="window.location.href = 'spreadsheetimportprocessdatasets.form';"/></td>
 	</form>
 </c:if>
 
