@@ -53,12 +53,12 @@
 					</tr>
 					<c:forEach var="prespecifiedValue" items="${template.prespecifiedValues}" varStatus="status">
 						<tr>
-							<td>${prespecifiedValue.prettyTableName}</td>								
+							<td>${prespecifiedValue.prettyTableName}</td>
 							<td><formsim:select path="prespecifiedValues[${status.index}].value">
 
 
 
-								<formsim:option value="" label="${prespecifiedValues[status.index].value}"/>
+								<formsim:option value="${prespecifiedValue.value}" selected="true" label="${prespecifiedValue.value}"/>
 								<formsim:options items="${prespecifiedValue.mapNameToAllowedValue}" itemLabel="name" itemValue="value"  />
 							</formsim:select></td>
 							<td><table>

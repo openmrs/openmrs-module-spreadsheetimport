@@ -29,7 +29,7 @@ public class SpreadsheetImportTemplatePrespecifiedValue implements Comparable {
 	
 	String tableDotColumn;
 	
-	String value = "dummy";
+	String value;
 	
 	Set<SpreadsheetImportTemplateColumnPrespecifiedValue> columnPrespecifiedValues = new TreeSet<SpreadsheetImportTemplateColumnPrespecifiedValue>();
 	

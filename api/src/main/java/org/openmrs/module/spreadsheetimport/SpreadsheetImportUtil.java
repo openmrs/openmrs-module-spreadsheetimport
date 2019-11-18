@@ -59,7 +59,7 @@ public class SpreadsheetImportUtil {
 	public static void resolveTemplateDependencies(SpreadsheetImportTemplate template) throws Exception {
 		
 		Set<SpreadsheetImportTemplatePrespecifiedValue> prespecifiedValues = new TreeSet<SpreadsheetImportTemplatePrespecifiedValue>();
-		
+
 		Map<String, Set<UniqueImport>> mapTnToUi = template.getMapOfColumnTablesToUniqueImportSet();
 		Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> mapUiToCs = template.getMapOfUniqueImportToColumnSet();
 		
