@@ -151,7 +151,7 @@ public class SpreadsheetImportFormController {
 					else if ("CWE".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_coded");
 					else if ("BIT".equals(hl7Abbrev))
-						column.setTableDotColumn("obs.value_boolean");
+						column.setTableDotColumn("obs.value_numeric"); // this saves as numeric in later versions of OpenMRS
 					else if ("DT".equals(hl7Abbrev) || "TM".equals(hl7Abbrev) || "TS".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_datetime");
 					else if ("ST".equals(hl7Abbrev))
@@ -270,6 +270,12 @@ public class SpreadsheetImportFormController {
 			//SpreadsheetImportUtil.resolveTemplateDependencies(template);
 			if (template.getPrespecifiedValues().size() != 0) {
 				return "/module/spreadsheetimport/spreadsheetimportFormPrespecifiedValue";
+			} else {
+				template.clearPrespecifiedValues();
+				template.clearColumnColumns();
+				SpreadsheetImportUtil.resolveTemplateDependencies(template);
+				return "/module/spreadsheetimport/spreadsheetimportFormPrespecifiedValue";
+
 			}
 
 		}
