@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
@@ -364,8 +365,6 @@ public class DatabaseBackend {
 
                 String tableName = uniqueImport.getTableName();
 
-                //System.out.println("Table to process ============> : " + tableName);
-
                 if (tableName.equals("patient_identifier") || tableName.equals("person_name")) {
                     continue;
                 }
@@ -378,6 +377,7 @@ public class DatabaseBackend {
                 boolean skip = false;
 
 
+                //System.out.println("Table Name: " + tableName);
 				/*Set<SpreadsheetImportTemplateColumn> columns = rowData.get(uniqueImport);
                 for (SpreadsheetImportTemplateColumn column : columns) {
 					column.setGeneratedKey(patientId);
@@ -536,6 +536,7 @@ public class DatabaseBackend {
 
                 if (isPatientIdentifier && importedTables.contains("patient_identifier"))
                     continue;
+
 
                 // Data from columns
                 Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -751,7 +752,7 @@ public class DatabaseBackend {
                 rsColumns.close();
 
                 // attempt to add visit
-                if (isEncounter && patientId != null) {
+                if (isEncounter && StringUtils.isNotBlank(encounterDate) && StringUtils.isNotBlank(patientId)) {
                     String encStartDatetime = encounterDate.concat(" ").concat("00:00:00");
                     String encEndDatetime = encounterDate.concat(" ").concat("23:59:59");
                     String getVisitQry = "SELECT visit_id from visit where date_started BETWEEN ':startDatetime' and ':endDatetime' and patient_id=:patientID";
@@ -896,13 +897,18 @@ public class DatabaseBackend {
 
                                         //System.out.println("Generated obs qry: " + sql);
 
-                                        grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                                        //TODO: try to replace this with a batch
+                                        grpConceptSt.addBatch(sql);
+                                        /*grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
                                         ResultSet obsRs = grpConceptSt.getGeneratedKeys();
-                                        obsRs.close();
+                                        obsRs.close();*/
 
                                     }
 
                                 }
+                                // execute batch here
+                                grpConceptSt.executeBatch();
+                                grpConceptSt.close();
                             }
                             //System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
 
@@ -918,22 +924,15 @@ public class DatabaseBackend {
 
 
     } catch(
-    SQLSyntaxErrorException e)
-
-    {
+    SQLSyntaxErrorException e) {
         e.printStackTrace();
         throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage());
-    } catch(
-    Exception e)
-
-    {
+    } catch(Exception e) {
         log.debug(e.toString());
         e.printStackTrace();
         exception = e;
         throw new SpreadsheetImportSQLSyntaxException(sql, e.getMessage()); // TODO: for web debug purpose only, should comment out later
-    } finally
-
-    {
+    } finally {
         if (s != null) {
             try {
                 s.close();
@@ -953,11 +952,9 @@ public class DatabaseBackend {
         }
     }
 
-        if(exception !=null)
-
-    {
-        throw exception;
-    }
+        if(exception !=null) {
+            throw exception;
+        }
 
         return encounterId;
 }

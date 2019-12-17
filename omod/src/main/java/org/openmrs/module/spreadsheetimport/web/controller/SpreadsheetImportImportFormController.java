@@ -117,7 +117,7 @@ public class SpreadsheetImportImportFormController {
 		// an associated person is found.
 		String successfulProcessMsg = null;
 
-		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
+		/*successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
 
 		if (successfulProcessMsg != null) {
 			// step 2: process hiv enrollment encounter
@@ -138,7 +138,7 @@ public class SpreadsheetImportImportFormController {
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_initial"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 
-		}
+		}*/
 
 	/*	template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
 		successfulProcessMsg = DbImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);

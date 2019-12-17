@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.validator.GenericValidator;
@@ -229,10 +230,14 @@ public class DbImportUtil {
         List<String> columnNames = new Vector<String>();
 
         Map<Integer, String> tableToTemplateMap = new HashMap<Integer, String>();
-        tableToTemplateMap.put(9, "tr_program_enrollment");
+
         tableToTemplateMap.put(8, "tr_hiv_enrollment");
+        tableToTemplateMap.put(9, "tr_hiv_program_enrollment");
         tableToTemplateMap.put(11, "tr_triage");
         tableToTemplateMap.put(12, "tr_hts_initial");
+        tableToTemplateMap.put(15, "tr_hts_retest");
+        tableToTemplateMap.put(23, "tr_hiv_regimen_history");
+        tableToTemplateMap.put(22, "tr_hiv_followup");
 
 
 
@@ -295,26 +300,43 @@ public class DbImportUtil {
         }
 
         if (columnNamesOnlyInSheet.isEmpty() == false) {
-            messages.add("Extra column names present, these will not be processed: " + toString(columnNamesOnlyInSheet));
+            //messages.add("Extra column names present, these will not be processed: " + toString(columnNamesOnlyInSheet));
         }
 
         // Process rows
 
 
         String tableName = tableToTemplateMap.get(template.getId());
+
+        /*// check if table is empty
+        ResultSet r = s.executeQuery("SELECT COUNT(*) AS rowcount FROM migration_tr.:tableName".replace(":tableName", tableName));
+        r.next();
+        int count = r.getInt("rowcount");
+        r.close();
+
+        if (count < 1) {
+            return "Dataset is empty"; // skip processing of the dataset
+        }*/
+
         String query = "select * from migration_tr.:tableName";
         query = query.replace(":tableName", tableName);
         //System.out.println("Resulting table name query: " + query);
         ResultSet rs = s.executeQuery(query);
 
-        // prototype grouped obs
+        // prototyping grouped obs
+        //TODO: explore use of excel configs in place of
         List<GroupedObservations> gObs = null;
-        if (template.getId() == 12) {
+        if (template.getId() == 12 || template.getId() == 15) {
             HTSGroupedObservations observations = new HTSGroupedObservations();
             gObs = observations.getColumnDefinitions();
         }
         int recordCount = 0;
-        while (rs.next()) {
+
+        if (rs.next() == false) {
+            System.out.println("Empty dataset. Will skip processing");
+            return "Empty dataset. Will skip processing";
+        } else {
+            do {
 
             boolean rowHasData = false;
             // attempt to process the extra encounter_datetime
@@ -323,47 +345,7 @@ public class DbImportUtil {
             String patientIdColVal = rs.getString(mainIdentifierColumn);
             String patientId = null;
 
-            /**
-             * Extract values of grouped observations here
-             */
-            if (gObs != null) {
-                for (GroupedObservations gO : gObs) {
-                    boolean groupHasData = false;
-                    for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
-                        String k = e.getKey();
-                        DatasetColumn v = e.getValue();
 
-                        Object value = null;
-
-                        if (GenericValidator.isInt(rs.getString(k))) {
-                            value = rs.getInt(k);
-                        } else if (GenericValidator.isFloat(rs.getString(k))) {
-                            value = rs.getDouble(k);
-                        } else if (GenericValidator.isDouble(rs.getString(k))) {
-                            value = rs.getDouble(k);
-                        } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
-                            java.util.Date date = rs.getDate(rs.getString(k));
-                            value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
-                        } else {
-                            value = rs.getString(k);
-                            if (value != null && !value.equals("")) {
-                                value = "'" + rs.getString(k) + "'";
-                            }
-                        }
-
-                        if (value != null) {
-                            v.setValue(value.toString());
-                            if (!groupHasData) {
-                                groupHasData = true;
-                                gO.setHasData(true);
-                            }
-                        }
-
-                        //System.out.println("Grouped obs values: " + k + ", value: " + value);
-
-                    }
-                }
-            }
             // ==========================
             String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
             String mainPtIdType = null;
@@ -395,7 +377,6 @@ public class DbImportUtil {
             int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
 
             if (encDateColumnIdx >= 0) {
-                //Cell encDateCell = row.getCell(encDateColumnIdx);
                 if (rs.getDate(encounterDateColumn) != null) {
                     java.util.Date encDate = rs.getDate(encounterDateColumn);
                     rowEncDate = DATE_FORMAT.format(encDate);// "'" + new java.sql.Timestamp(encDate.getTime()).toString() + "'";
@@ -461,15 +442,57 @@ public class DbImportUtil {
                 }
             }
 
+            //System.out.println("Has data: " + rowHasData + ", patient ID: " + patientId);
 
+            /**
+             * Extract values of grouped observations here
+             */
+            if (gObs != null) {
+                for (GroupedObservations gO : gObs) {
+                    boolean groupHasData = false;
+                    for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                        String k = e.getKey();
+                        DatasetColumn v = e.getValue();
 
-            if (rowHasData && patientId != null) {
+                        Object value = null;
+
+                        if (GenericValidator.isInt(rs.getString(k))) {
+                            value = rs.getInt(k);
+                        } else if (GenericValidator.isFloat(rs.getString(k))) {
+                            value = rs.getDouble(k);
+                        } else if (GenericValidator.isDouble(rs.getString(k))) {
+                            value = rs.getDouble(k);
+                        } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
+                            java.util.Date date = rs.getDate(rs.getString(k));
+                            value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                        } else {
+                            value = rs.getString(k);
+                            if (value != null && !value.equals("")) {
+                                value = "'" + rs.getString(k) + "'";
+                            }
+                        }
+
+                        if (value != null) {
+                            v.setValue(value.toString());
+                            if (!groupHasData) {
+                                groupHasData = true;
+                                gO.setHasData(true);
+                            }
+                        }
+
+                        //System.out.println("Grouped obs values: " + k + ", value: " + value);
+
+                    }
+                }
+            }
+
+            if (rowHasData && StringUtils.isNotBlank(patientId)) {
                 Exception exception = null;
                 try {
                     DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction);
                     recordCount++;
-                    System.out.println(":: Completed processing record :: " + recordCount + " for template " + template.getName());
+                    System.out.println(":: Completed processing record :: " + recordCount + " for template " + template.getName() + ", returnedId:" +encounterId);
 
                     /*if (encounterId != null) {
                         for (UniqueImport uniqueImport : rowData.keySet()) {
@@ -500,7 +523,8 @@ public class DbImportUtil {
                 }
             }
 
-        }
+        } while (rs.next());
+    }
 
 
         return "Successful import";
