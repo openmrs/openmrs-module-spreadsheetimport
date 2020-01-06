@@ -29,6 +29,7 @@ truncate table encounter;
 truncate table obs;
 truncate table visit;
 truncate table user_property;
+TRUNCATE TABLE encounter_provider;
 truncate table provider;
 delete from user_role where user_id not in(select user_id from users where system_id='admin');
 alter table users AUTO_INCREMENT=0;

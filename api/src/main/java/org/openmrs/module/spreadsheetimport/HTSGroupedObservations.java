@@ -16,10 +16,13 @@ public class HTSGroupedObservations implements DatasetGroupedObservations {
 
         DatasetColumn testKitName = new DatasetColumn(164962, "value_coded");
         DatasetColumn test2KitName = new DatasetColumn(164962, "value_coded");
+
         DatasetColumn testLotNo = new DatasetColumn(164964, "value_text");
         DatasetColumn test2LotNo = new DatasetColumn(164964, "value_text");
+
         DatasetColumn testKitExpiry = new DatasetColumn(162502, "value_datetime");
         DatasetColumn test2KitExpiry = new DatasetColumn(162501, "value_datetime");
+
         DatasetColumn testResult = new DatasetColumn(1040, "value_coded");
         DatasetColumn test2Result = new DatasetColumn(1326, "value_coded");
 

@@ -805,15 +805,29 @@ public class DatabaseBackend {
                     log.debug(sql);
                 }
 
-                s.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-                ResultSet rs = s.getGeneratedKeys();
-                rs.next();
-                for (SpreadsheetImportTemplateColumn column : columnSet) {
-                    column.setGeneratedKey(rs.getString(1));
+                //introduce batch processing for encounter obs
+
+
+
+                if (isObservation) {
+                    s.addBatch(sql);
+                } else {
+                    // move all previous code to this block
+                    //TODO: cleanup code after testing
+                    s.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                    ResultSet rs = s.getGeneratedKeys();
+                    rs.next();
+
+                    if (isEncounter) {
+                        encounterId = rs.getString(1);
+                    }
+                    for (SpreadsheetImportTemplateColumn column : columnSet) {
+                        column.setGeneratedKey(rs.getString(1));
+                    }
+                    rs.close();
                 }
                 // SPECIAL TREATMENT: update Encounter ID back to the Excel file by returning it to the caller
                 if (isEncounter) {
-                    encounterId = rs.getString(1);
                     // process grouped obs
                     if (groupedObservations != null && !groupedObservations.isEmpty()) {
                         for (GroupedObservations gObs : groupedObservations) {
@@ -915,13 +929,12 @@ public class DatabaseBackend {
                         }
                 }
             }
-            rs.close();
 
             importedTables.add(uniqueImport.getTableName());
         }
 
-        // process grouped observation
-
+        //System.out.println("Executing batch");
+        s.executeBatch();
 
     } catch(
     SQLSyntaxErrorException e) {

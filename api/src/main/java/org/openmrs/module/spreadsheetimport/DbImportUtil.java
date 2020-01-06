@@ -308,16 +308,6 @@ public class DbImportUtil {
 
         String tableName = tableToTemplateMap.get(template.getId());
 
-        /*// check if table is empty
-        ResultSet r = s.executeQuery("SELECT COUNT(*) AS rowcount FROM migration_tr.:tableName".replace(":tableName", tableName));
-        r.next();
-        int count = r.getInt("rowcount");
-        r.close();
-
-        if (count < 1) {
-            return "Dataset is empty"; // skip processing of the dataset
-        }*/
-
         String query = "select * from migration_tr.:tableName";
         query = query.replace(":tableName", tableName);
         //System.out.println("Resulting table name query: " + query);
@@ -467,12 +457,12 @@ public class DbImportUtil {
                             value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                         } else {
                             value = rs.getString(k);
-                            if (value != null && !value.equals("")) {
+                            if (value != null && StringUtils.isNotBlank(value.toString())) {
                                 value = "'" + rs.getString(k) + "'";
                             }
                         }
 
-                        if (value != null) {
+                        if (value != null && StringUtils.isNotBlank(value.toString())) {
                             v.setValue(value.toString());
                             if (!groupHasData) {
                                 groupHasData = true;
@@ -492,8 +482,12 @@ public class DbImportUtil {
                     DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction);
                     recordCount++;
-                    System.out.println(":: Completed processing record :: " + recordCount + " for template " + template.getName() + ", returnedId:" +encounterId);
 
+                    if (recordCount == 1) {
+                        System.out.println(new Date().toString() + ":: Completed processing record 1 ::  for template " + template.getName());
+                    } else if (recordCount%1000 == 0) {
+                        System.out.println(new Date().toString() + ":: Completed processing record :: " + recordCount + " for template " + template.getName());
+                    }
                     /*if (encounterId != null) {
                         for (UniqueImport uniqueImport : rowData.keySet()) {
                             Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -993,7 +987,11 @@ public class DbImportUtil {
                     }
                 }
                 recordCount++;
-                System.out.println(":: Completed Processing record :: " + recordCount + " in demographics dataset");
+                if (recordCount == 1) {
+                    System.out.println(new Date().toString() + ":: Completed processing record 1 ::  in demographics dataset");
+                } else if (recordCount%1000==0) {
+                    System.out.println(new Date().toString() + ":: Completed Processing record :: " + recordCount + " in demographics dataset");
+                }
             }
 
         } catch (IllegalAccessException e) {
