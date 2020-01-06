@@ -119,7 +119,7 @@ public class SpreadsheetImportProcessDataFormController {
 
 		}*/
 
-		if (successfulProcessMsg != null) {
+		/*if (successfulProcessMsg != null) {
 			// step 4: process HTS
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_initial"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
@@ -131,7 +131,7 @@ public class SpreadsheetImportProcessDataFormController {
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_retest"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 
-		}
+		}*/
 
 		if (successfulProcessMsg != null) {
 			// step 4: process triage
@@ -139,11 +139,11 @@ public class SpreadsheetImportProcessDataFormController {
 			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
 		}
 
-		if (successfulProcessMsg != null) {
+		/*if (successfulProcessMsg != null) {
 			// step 4: process triage
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_followup"));
 			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
-		}
+		}*/
 
 		boolean succeeded = (successfulProcessMsg != null);
 

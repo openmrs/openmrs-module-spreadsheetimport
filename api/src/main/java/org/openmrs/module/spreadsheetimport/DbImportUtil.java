@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -224,6 +225,7 @@ public class DbImportUtil {
 
     public static String importTemplate(SpreadsheetImportTemplate template,
                                         List<String> messages, boolean rollbackTransaction) throws Exception {
+        MysqlDataSource dataSource = null;
         Connection conn = null;
         Statement s = null;
         String sql = null;
@@ -249,13 +251,20 @@ public class DbImportUtil {
             //System.out.println("Attempting to read from the migration database!");
 
             // Connect to db
-            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            //Class.forName("com.mysql.jdbc.Driver").newInstance();
 
             Properties p = Context.getRuntimeProperties();
             String url = p.getProperty("connection.url");
 
-            conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
-                    p.getProperty("connection.password"));
+            dataSource = new MysqlDataSource();
+            dataSource.setURL(url);
+            dataSource.setUser(p.getProperty("connection.username"));
+            dataSource.setPassword(p.getProperty("connection.password"));
+
+            conn = dataSource.getConnection();
+            // commented out by AO for testing
+            /*conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                    p.getProperty("connection.password"));*/
 
             //conn.setAutoCommit(false);
 
@@ -480,7 +489,7 @@ public class DbImportUtil {
                 Exception exception = null;
                 try {
                     DatabaseBackend.validateData(rowData);
-                    String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction);
+                    String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
                     recordCount++;
 
                     if (recordCount == 1) {
@@ -518,6 +527,14 @@ public class DbImportUtil {
             }
 
         } while (rs.next());
+    }
+
+    try {
+            if (conn != null) {
+                conn.close();
+            }
+    } catch (Exception e) {
+            e.printStackTrace();
     }
 
 

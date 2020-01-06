@@ -336,8 +336,8 @@ public class DatabaseBackend {
 
     public static String importData(Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData,
                                     String encounterDate, String patientId, List<GroupedObservations> groupedObservations,
-                                    boolean rollbackTransaction) throws Exception {
-        Connection conn = null;
+                                    boolean rollbackTransaction, Connection conn) throws Exception {
+        //Connection conn = null;
         Statement s = null;
         Exception exception = null;
         String sql = null;
@@ -346,13 +346,13 @@ public class DatabaseBackend {
         try {
 
             // Connect to db
-            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            /*Class.forName("com.mysql.jdbc.Driver").newInstance();
 
             Properties p = Context.getRuntimeProperties();
             String url = p.getProperty("connection.url");
 
             conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
-                    p.getProperty("connection.password"));
+                    p.getProperty("connection.password"));*/
 
             conn.setAutoCommit(false);
 
@@ -959,7 +959,7 @@ public class DatabaseBackend {
                 conn.commit();
             }
             try {
-                conn.close();
+                //conn.close(); TODO: remove this after test
             } catch (Exception e) {
             }
         }
