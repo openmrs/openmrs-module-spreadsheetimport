@@ -736,20 +736,44 @@ public class DatabaseBackend {
                 columnNames += ",creator";
                 columnValues += "," + Context.getAuthenticatedUser().getId();
 
+                //TODO: provide a predefined list of table names with uuids
+                DatabaseMetaData dmd = null;
+                /**
+                 * visit,encounter,obs,patient_program,
+                 */
+
                 // uuid
-                DatabaseMetaData dmd = conn.getMetaData();
-                ResultSet rsColumns = dmd.getColumns(null, null, uniqueImport.getTableName(), "uuid");
-                if (rsColumns.next()) {
+                if (uniqueImport.getTableName() != null &&
+                        (uniqueImport.getTableName().equals("visit") ||
+                                uniqueImport.getTableName().equals("encounter") ||
+                                uniqueImport.getTableName().equals("obs") ||
+                                uniqueImport.getTableName().equals("patient_program"))) {
                     columnNames += ",uuid";
                     columnValues += ",uuid()";
+                } else {
+                    dmd = conn.getMetaData();
+                    ResultSet rsColumns = dmd.getColumns(null, null, uniqueImport.getTableName(), "uuid");
+                    if (rsColumns.next()) {
+                        columnNames += ",uuid";
+                        columnValues += ",uuid()";
+                    }
+                    rsColumns.close();
                 }
+
                 // add date created
-                ResultSet dateCreatedColumn = dmd.getColumns(null, null, uniqueImport.getTableName(), "date_created");
-                if (dateCreatedColumn.next() && !columnNames.contains("date_created")) {
+                if (uniqueImport.getTableName() != null &&
+                        (uniqueImport.getTableName().equals("visit") ||
+                                uniqueImport.getTableName().equals("patient_program"))) {
                     columnNames += ",date_created";
                     columnValues += ",now()";
-                }
-                rsColumns.close();
+                } /*else {
+                    ResultSet dateCreatedColumn = dmd.getColumns(null, null, uniqueImport.getTableName(), "date_created");
+                    if (dateCreatedColumn.next() && !columnNames.contains("date_created")) {
+                        columnNames += ",date_created";
+                        columnValues += ",now()";
+                    }
+                    dateCreatedColumn.close();
+                }*/
 
                 // attempt to add visit
                 if (isEncounter && StringUtils.isNotBlank(encounterDate) && StringUtils.isNotBlank(patientId)) {

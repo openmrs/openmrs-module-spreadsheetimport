@@ -488,7 +488,7 @@ public class DbImportUtil {
             if (rowHasData && StringUtils.isNotBlank(patientId)) {
                 Exception exception = null;
                 try {
-                    DatabaseBackend.validateData(rowData);
+                    //DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
                     recordCount++;
 
