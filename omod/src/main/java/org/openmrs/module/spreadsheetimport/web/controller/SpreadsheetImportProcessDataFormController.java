@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.spreadsheetimport.web.controller;
 
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
@@ -31,10 +32,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * This controller backs and saves the Spreadsheet Import module settings
@@ -63,6 +68,8 @@ public class SpreadsheetImportProcessDataFormController {
 		List<String> messages = new ArrayList<String>();
 		boolean rollbackTransaction = false;
 
+		String iqcareidtype = getMigrationPrimaryIdentifierType();
+
 
 		Map<String, Integer> tableToTemplateMap = new HashMap<String, Integer>();
 		tableToTemplateMap.put("tr_hiv_enrollment", 8);
@@ -72,6 +79,8 @@ public class SpreadsheetImportProcessDataFormController {
 		tableToTemplateMap.put("tr_hts_retest", 15);
 		tableToTemplateMap.put("tr_hiv_regimen_history", 23);
 		tableToTemplateMap.put("tr_hiv_followup", 22);
+
+
 
 
 		/**
@@ -99,7 +108,7 @@ public class SpreadsheetImportProcessDataFormController {
 
 			// step 2: process hiv enrollment encounter
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_enrollment"));
-			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
+			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
 			System.out.println("Completed processing HIV enrollments ");
 
 
@@ -136,7 +145,7 @@ public class SpreadsheetImportProcessDataFormController {
 		if (successfulProcessMsg != null) {
 			// step 4: process triage
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
-			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction);
+			successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
 		}
 
 		/*if (successfulProcessMsg != null) {
@@ -167,6 +176,47 @@ public class SpreadsheetImportProcessDataFormController {
 		}
 		
 		return "/module/spreadsheetimport/spreadsheetimportProcessDataForm";
+	}
+
+	private String getMigrationPrimaryIdentifierType() {
+
+		MysqlDataSource dataSource = null;
+		Connection conn = null;
+
+		String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
+		String mainPtIdType = null;
+		String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + IQCARE_PERSON_PK_ID_TYPE + "'";
+
+		try {
+			Properties p = Context.getRuntimeProperties();
+			String url = p.getProperty("connection.url");
+			dataSource = new MysqlDataSource();
+			dataSource.setURL(url);
+			dataSource.setUser(p.getProperty("connection.username"));
+			dataSource.setPassword(p.getProperty("connection.password"));
+			conn = dataSource.getConnection();
+			Statement getPatientSt = conn.createStatement();
+
+			ResultSet mainIdentifieryType = getPatientSt.executeQuery(mainIdQry);
+			if (mainIdentifieryType.next()) {
+				mainPtIdType = mainIdentifieryType.getString(1);
+
+			}
+			if (mainIdentifieryType != null) {
+				mainIdentifieryType.close();
+			}
+		} catch (Exception e) {
+
+		} finally {
+			try {
+				if (conn != null) {
+					conn.close();
+				}
+			} catch (Exception e) {
+
+			}
+		}
+		return mainPtIdType;
 	}
 		
 }

@@ -224,7 +224,7 @@ public class DbImportUtil {
     }
 
     public static String importTemplate(SpreadsheetImportTemplate template,
-                                        List<String> messages, boolean rollbackTransaction) throws Exception {
+                                        List<String> messages, boolean rollbackTransaction, String mainPtIdType) throws Exception {
         MysqlDataSource dataSource = null;
         Connection conn = null;
         Statement s = null;
@@ -346,19 +346,7 @@ public class DbImportUtil {
 
 
             // ==========================
-            String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
-            String mainPtIdType = null;
-            String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + IQCARE_PERSON_PK_ID_TYPE + "'";
             Statement getPatientSt = conn.createStatement();
-            ResultSet mainIdentifieryType = getPatientSt.executeQuery(mainIdQry);
-            if (mainIdentifieryType.next()) {
-                mainPtIdType = mainIdentifieryType.getString(1);
-
-            }
-            if (mainIdentifieryType != null) {
-                mainIdentifieryType.close();
-            }
-
             String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=" + mainPtIdType;
 
 
