@@ -23,7 +23,10 @@
 <form method="post" enctype="multipart/form-data">
     <form:errors path="*" cssClass="error"/>
 
-	<input type="submit" value="Process HIV Datasets"/>
+    <h3>Choose dataset(s) to migrate</h3>
+	<p>1. <input type="submit" name="Demographics" value="Demographics"/></p>
+    <p>2. <input type="submit" name="Others" value="Others"/></p>
+    <p>3. <input type="submit" name="All" value="All"/></p>
 </form>
 
 <%@ include file="/WEB-INF/template/footer.jsp"%>

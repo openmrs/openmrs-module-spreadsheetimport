@@ -364,7 +364,6 @@ public class DatabaseBackend {
             for (UniqueImport uniqueImport : rowData.keySet()) {
 
                 String tableName = uniqueImport.getTableName();
-
                 if (tableName.equals("patient_identifier") || tableName.equals("person_name")) {
                     continue;
                 }
@@ -375,7 +374,6 @@ public class DatabaseBackend {
                 boolean isObservation = "obs".equals(tableName);
 
                 boolean skip = false;
-
 
                 //System.out.println("Table Name: " + tableName);
 				/*Set<SpreadsheetImportTemplateColumn> columns = rowData.get(uniqueImport);
@@ -397,8 +395,9 @@ public class DatabaseBackend {
                             break;
                         }
                     }
-                    if (skip)
+                    if (skip) {
                         continue;
+                    }
                 }
 
                 // SPECIAL TREATMENT
@@ -536,7 +535,6 @@ public class DatabaseBackend {
 
                 if (isPatientIdentifier && importedTables.contains("patient_identifier"))
                     continue;
-
 
                 // Data from columns
                 Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -775,7 +773,7 @@ public class DatabaseBackend {
                     dateCreatedColumn.close();
                 }*/
 
-                // attempt to add visit
+                // attempt to assign a visit to an encounter
                 if (isEncounter && StringUtils.isNotBlank(encounterDate) && StringUtils.isNotBlank(patientId)) {
                     String encStartDatetime = encounterDate.concat(" ").concat("00:00:00");
                     String encEndDatetime = encounterDate.concat(" ").concat("23:59:59");
@@ -824,7 +822,7 @@ public class DatabaseBackend {
                 sql = sql.replace("'NULL'", "NULL");
                 //replace empty space with ',NULL,'
                 sql = sql.replace(",,", ",NULL,");
-                //System.out.println("Query to execute: " + sql);
+
                 if (log.isDebugEnabled()) {
                     log.debug(sql);
                 }
@@ -855,8 +853,6 @@ public class DatabaseBackend {
                     // process grouped obs
                     if (groupedObservations != null && !groupedObservations.isEmpty()) {
                         for (GroupedObservations gObs : groupedObservations) {
-                            //System.out.println(":::::::::::::::::::::: BEGIN :::::::::::::::::::::::::::::::::: ");
-                            //System.out.println(" Has Data: " + gObs.hasData());
 
                             if (gObs.hasData()) {
                                 Integer groupConceptId = gObs.getGroupConceptId();
@@ -881,7 +877,6 @@ public class DatabaseBackend {
 
                                 sql = "insert into obs (" + columnNames + ")" + " values ("
                                         + columnValues + ")";
-                                //System.out.println("Generated obs group qry: " + sql);
 
                                 Statement grpConceptSt = conn.createStatement();
                                 grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
@@ -894,7 +889,7 @@ public class DatabaseBackend {
                                     // we only want entries
 
                                     DatasetColumn column = e.getValue();
-                                    //System.out.println("Group obs val: " + column.getValue());
+
                                     if (column.getValue() != null && !column.getValue().equals("")) {
 
                                         columnNames = "";
@@ -937,9 +932,6 @@ public class DatabaseBackend {
 
                                         //TODO: try to replace this with a batch
                                         grpConceptSt.addBatch(sql);
-                                        /*grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-                                        ResultSet obsRs = grpConceptSt.getGeneratedKeys();
-                                        obsRs.close();*/
 
                                     }
 
@@ -948,8 +940,6 @@ public class DatabaseBackend {
                                 grpConceptSt.executeBatch();
                                 grpConceptSt.close();
                             }
-                            //System.out.println("::::::::::::::::::::::::::: END :::::::::::::::::::::::::::::: ");
-
                         }
                 }
             }
@@ -957,7 +947,6 @@ public class DatabaseBackend {
             importedTables.add(uniqueImport.getTableName());
         }
 
-        //System.out.println("Executing batch");
         s.executeBatch();
 
     } catch(

@@ -313,13 +313,10 @@ public class DbImportUtil {
         }
 
         // Process rows
-
-
         String tableName = tableToTemplateMap.get(template.getId());
 
         String query = "select * from migration_tr.:tableName";
         query = query.replace(":tableName", tableName);
-        //System.out.println("Resulting table name query: " + query);
         ResultSet rs = s.executeQuery(query);
 
         // prototyping grouped obs
@@ -341,12 +338,15 @@ public class DbImportUtil {
             // attempt to process the extra encounter_datetime
             String encounterDateColumn = "Encounter_Date";
             String mainIdentifierColumn = "Person_Id";
+            String internalIdColumn = "patient_id";
             String patientIdColVal = rs.getString(mainIdentifierColumn);
-            String patientId = null;
+            String internalIdVal = rs.getString(internalIdColumn);
+            String patientId = rs.getString(internalIdColumn);
+            //String patientId = null;
 
 
             // ==========================
-            Statement getPatientSt = conn.createStatement();
+            /*Statement getPatientSt = conn.createStatement();
             String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=" + mainPtIdType;
 
 
@@ -357,7 +357,7 @@ public class DbImportUtil {
             }
             if (getPatientRs != null) {
                 getPatientRs.close();
-            }
+            }*/
 
             // ==========================
             String rowEncDate = null;
