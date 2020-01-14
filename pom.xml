@@ -93,6 +93,12 @@ lib/poi-ooxml-3.6-20091214.jar
 				<artifactId>commons-validator</artifactId>
 				<version>${apacheValidatorVersion}</version>
 			</dependency>
+			<!--Adding dependency for script runner -->
+			<dependency>
+				<groupId>org.mybatis</groupId>
+				<artifactId>mybatis</artifactId>
+				<version>3.4.5</version>
+			</dependency>
 		</dependencies>
 
 	</dependencyManagement>

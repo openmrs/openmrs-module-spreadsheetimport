@@ -16,11 +16,17 @@ package org.openmrs.module.spreadsheetimport.web.controller;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.ibatis.jdbc.ScriptRunner;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.spreadsheetimport.DbImportUtil;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplate;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
+import org.openmrs.util.OpenmrsUtil;
 import org.openmrs.web.WebConstants;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -32,9 +38,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -195,6 +205,8 @@ public class SpreadsheetImportProcessDataFormController {
 
         successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
         System.out.println("Completed processing demographics ");
+
+        doPostDemographics();
 
         boolean succeeded = (successfulProcessMsg != null);
 
@@ -470,6 +482,64 @@ public class SpreadsheetImportProcessDataFormController {
             //System.exit(-1);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void doPostDemographics() {
+        ResourceDatabasePopulator rdp = new ResourceDatabasePopulator();
+        //OpenmrsUtil.getApplicationDataDirectory();
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "post_demographics_processing_query.sql";
+        System.out.println("File path: " + fullFilePath);
+        rdp.addScript(new FileSystemResource(fullFilePath));
+        rdp.setSqlScriptEncoding("UTF-8");
+        rdp.setIgnoreFailedDrops(true);
+        Connection conn = null;
+
+        try {
+            conn = getDbConnection();
+            rdp.populate(conn);
+            System.out.println("Completed running the script");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    private void doPostDemographicsProcessing(){
+        Connection conn = null;
+        Reader reader = null;
+        try {
+            conn = getDbConnection();
+            ScriptRunner sr = new ScriptRunner(conn);
+            reader = new BufferedReader(new FileReader("E:\\sampleScript.sql"));
+            AdministrationService as = Context.getAdministrationService();
+
+            sr.runScript(reader);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            // close file reader
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            // close db connection
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
