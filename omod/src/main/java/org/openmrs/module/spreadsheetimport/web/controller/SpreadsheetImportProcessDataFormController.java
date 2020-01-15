@@ -337,11 +337,12 @@ public class SpreadsheetImportProcessDataFormController {
         return "/module/spreadsheetimport/spreadsheetimportProcessDataForm";
     }
 
+
     private String getMigrationPrimaryIdentifierType() {
 
-        MysqlDataSource dataSource = null;
         Connection conn = null;
 
+        //TODO: add this identifier type as global property
         String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
         String mainPtIdType = null;
         String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + IQCARE_PERSON_PK_ID_TYPE + "'";
@@ -373,61 +374,11 @@ public class SpreadsheetImportProcessDataFormController {
         return mainPtIdType;
     }
 
-    private String prepareDatasetsForMigration(Map<String, Integer> migrationDatasetMap, String primaryIdType) {
 
-        // query templates
-        String qryAddInternalIdColumn = "alter table migration_tr.:tableName add column patient_id int(100) default null;";
-        String qryAddIndexOnPrimaryIdColumn = "alter table migration_tr.:tableName add index (Person_Id);";
-        String qryUpdateDatasetWithInternalId = "update migration_tr.:tableName a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier and b.identifier_type=16 set a.patient_id = b.patient_id;";
-        Connection conn = null;
-        try {
-            conn = getDbConnection();
-            //conn.setAutoCommit(false);
-
-            for (String tableName : migrationDatasetMap.keySet()) {
-                System.out.println("Handling query for table: " + tableName);
-                Statement st = conn.createStatement();
-                st.addBatch(qryAddInternalIdColumn.replace(":tableName", tableName));
-                st.addBatch(qryAddIndexOnPrimaryIdColumn.replace(":tableName", tableName));
-                //st.addBatch(qryUpdateDatasetWithInternalId.replace(":tableName", tableName));
-                st.executeBatch();
-                //updateInternalIds(conn, qryUpdateDatasetWithInternalId.replace(":tableName", tableName));
-                executeShellCommand(qryUpdateDatasetWithInternalId.replace(":tableName", tableName));
-                //conn.commit();
-                st.close();
-
-
-            }
-            return "Successful";
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (conn != null) {
-                    conn.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
-    }
-
-    private boolean updateInternalIds(Connection conn, String query) {
-        try {
-            System.out.println("Executing :" + query);
-            Statement statement = conn.createStatement();
-            boolean rs = statement.execute(query);
-            conn.commit();
-            statement.close();
-            System.out.println("Changes committed: " + statement.getUpdateCount());
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
+    /**
+     * Establishes db connection using details from openmrs runtime property.
+     * @return Connection
+     */
     private Connection getDbConnection() {
         Properties p = Context.getRuntimeProperties();
         String url = p.getProperty("connection.url");
@@ -443,51 +394,18 @@ public class SpreadsheetImportProcessDataFormController {
         return null;
     }
 
-    private void executeShellCommand(String query) {
-        //mysql --user=${mysql_user} --password=${mysql_password} ${mysql_base_database} -Bse "DELETE FROM liquibasechangelog where id like 'kenyaemrChart%';"
-        // update migration_tr.tr_hiv_enrollment a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier and b.identifier_type=16 set a.patient_id = b.patient_id;
-        // Runtime.getRuntime().exec(  new String [] {"mysql", "-u", "root", "-pmanager", "-e", "show databases"} )
 
-        String s = null;
-
-        try {
-
-            String qry = "mysql -uroot -proot migration_tr -Bse \"" + query + "\"";
-            StringBuilder sb = new StringBuilder();
-            sb.append("\"").append(query).append("\";");
-
-            String[] command = {"mysql", "-u", "root", "-proot", "-e", query};
-            System.out.println("Resulting command: " + query);
-            Process p = Runtime.getRuntime().exec(command);
-            p.waitFor();
-
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-
-            // read the output from the command
-            System.out.println("Here is the standard output of the command:\n");
-            while ((s = stdInput.readLine()) != null) {
-                System.out.println(s);
-            }
-            // read any errors from the attempted command
-            System.out.println("Here is the standard error of the command (if any):\n");
-            while ((s = stdError.readLine()) != null) {
-                System.out.println(s);
-            }
-            //System.exit(0);
-        } catch (IOException e) {
-            System.out.println("exception happened - here's what I know: ");
-            e.printStackTrace();
-            //System.exit(-1);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * Handles housekeeping after processing demographics.
+     * These include:
+     * 1. adding patient_id column to all datasets
+     * 2. add index on Person_Id column which holds an identifier from source database
+     * 3. updates patient_id column with patient_id values generated by OpenMRS after processing demographics
+     *
+     * The method executes a sql script provided in the OpenMRS app data directory
+     */
     private void doPostDemographics() {
         ResourceDatabasePopulator rdp = new ResourceDatabasePopulator();
-        //OpenmrsUtil.getApplicationDataDirectory();
         String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "post_demographics_processing_query.sql";
         System.out.println("File path: " + fullFilePath);
         rdp.addScript(new FileSystemResource(fullFilePath));
@@ -511,74 +429,4 @@ public class SpreadsheetImportProcessDataFormController {
             }
         }
     }
-    private void doPostDemographicsProcessing(){
-        Connection conn = null;
-        Reader reader = null;
-        try {
-            conn = getDbConnection();
-            ScriptRunner sr = new ScriptRunner(conn);
-            reader = new BufferedReader(new FileReader("E:\\sampleScript.sql"));
-            AdministrationService as = Context.getAdministrationService();
-
-            sr.runScript(reader);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            // close file reader
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            // close db connection
-            if (conn != null) {
-                try {
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private void executeCommandUsingProcessBuilder(String query) {
-
-        ProcessBuilder processBuilder = new ProcessBuilder();
-        StringBuilder sb = new StringBuilder();
-        sb.append("\"").append(query).append(";\"");
-        // -- Linux --
-
-        // Run a shell command
-        //processBuilder.command("bash", "-c", "ls /home/mkyong/");
-        processBuilder.command("mysql", "-u", "root", "-proot", "-Bse" + sb.toString());
-
-        try {
-
-            Process process = processBuilder.start();
-            StringBuilder output = new StringBuilder();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line + "\n");
-            }
-
-            int exitVal = process.waitFor();
-            if (exitVal == 0) {
-                System.out.println("Success!");
-                System.out.println(output);
-                System.exit(0);
-            } else {
-                System.out.println("Could not execute the query!");
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
 }
