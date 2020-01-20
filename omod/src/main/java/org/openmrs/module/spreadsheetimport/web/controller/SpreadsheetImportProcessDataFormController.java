@@ -92,6 +92,14 @@ public class SpreadsheetImportProcessDataFormController {
         tableToTemplateMap.put("tr_hts_retest", 15);
         tableToTemplateMap.put("tr_hiv_regimen_history", 23);
         tableToTemplateMap.put("tr_hiv_followup", 22);
+
+
+        tableToTemplateMap.put("tr_tb_screening", 22);
+        tableToTemplateMap.put("tr_hiv_program_discontinuation", 10);
+        tableToTemplateMap.put("tr_ipt_program", 17);
+        tableToTemplateMap.put("tr_ipt_followup", 19);
+
+
         String successfulProcessMsg = "proceed";
         SpreadsheetImportTemplate template = null;
 
