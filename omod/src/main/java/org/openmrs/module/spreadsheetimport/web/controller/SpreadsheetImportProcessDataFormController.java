@@ -77,7 +77,7 @@ public class SpreadsheetImportProcessDataFormController {
         String iqcareidtype = getMigrationPrimaryIdentifierType();
 
 
-        Map<String, Integer> tableToTemplateMap = getTemplateDatasetMap();
+        Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
         String successfulProcessMsg = "proceed";
         SpreadsheetImportTemplate template = null;
 
@@ -214,7 +214,7 @@ public class SpreadsheetImportProcessDataFormController {
         boolean rollbackTransaction = false;
 
         String iqcareidtype = getMigrationPrimaryIdentifierType();
-        Map<String, Integer> tableToTemplateMap = getTemplateDatasetMap();
+        Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
         String successfulProcessMsg = "proceed";
         SpreadsheetImportTemplate template = null;
 
@@ -389,36 +389,5 @@ public class SpreadsheetImportProcessDataFormController {
                 }
             }
         }
-    }
-
-    protected Map<String, Integer> getTemplateDatasetMap() {
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
-        JSONParser jsonParser = new JSONParser();
-        try {
-            //Read JSON file
-            FileReader reader = new FileReader(fullFilePath);
-            Object obj = jsonParser.parse(reader);
-
-            JSONArray templateDatasetMap = (JSONArray) obj;
-            Map<String,Integer> configMap = new HashMap<String, Integer>();
-
-            for (int i = 0 ; i < templateDatasetMap.size() ; i++) {
-                JSONObject o = (JSONObject) templateDatasetMap.get(i);
-                //every object has description, template_id, and dataset properties.
-                Long tempId = (Long) (o.get("template_id"));// this value is read as Long
-                int tempIdIntVal = tempId.intValue();
-                configMap.put((String) o.get("dataset"), tempIdIntVal);
-            }
-            return configMap;
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-
-        return null;
     }
 }

@@ -18,10 +18,18 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.validator.GenericValidator;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
+import org.openmrs.util.OpenmrsUtil;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -231,18 +239,7 @@ public class DbImportUtil {
         String sql = null;
         List<String> columnNames = new Vector<String>();
 
-        Map<Integer, String> tableToTemplateMap = new HashMap<Integer, String>();
-
-        tableToTemplateMap.put(8, "tr_hiv_enrollment");
-        tableToTemplateMap.put(9, "tr_hiv_program_enrollment");
-        tableToTemplateMap.put(11, "tr_triage");
-        tableToTemplateMap.put(12, "tr_hts_initial");
-        tableToTemplateMap.put(15, "tr_hts_retest");
-        tableToTemplateMap.put(23, "tr_hiv_regimen_history");
-        tableToTemplateMap.put(22, "tr_hiv_followup");
-
-
-
+        Map<Integer, String> tableToTemplateMap = DbImportUtil.reverseMapKeyValues(getTemplateDatasetMap());
         String tableToProcess = tableToTemplateMap.get(template.getId());
 
 
@@ -262,9 +259,6 @@ public class DbImportUtil {
             dataSource.setPassword(p.getProperty("connection.password"));
 
             conn = dataSource.getConnection();
-            // commented out by AO for testing
-            /*conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
-                    p.getProperty("connection.password"));*/
 
             //conn.setAutoCommit(false);
 
@@ -303,7 +297,7 @@ public class DbImportUtil {
         columnNamesOnlyInSheet.removeAll(template.getColumnNamesAsList());
 
         // AO
-        // remove the extra encounter date column provided
+        // remove the extra encounter date column from validation warning
         if (columnNamesOnlyInSheet.contains("Encounter_Date")) {
             columnNamesOnlyInSheet.remove("Encounter_Date");
         }
@@ -1029,6 +1023,51 @@ public class DbImportUtil {
 
 
         return "Successful";
+    }
+
+    public static Map<String, Integer> getTemplateDatasetMap() {
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
+        JSONParser jsonParser = new JSONParser();
+        try {
+            //Read JSON file
+            FileReader reader = new FileReader(fullFilePath);
+            Object obj = jsonParser.parse(reader);
+
+            JSONArray templateDatasetMap = (JSONArray) obj;
+            Map<String,Integer> configMap = new HashMap<String, Integer>();
+
+            for (int i = 0 ; i < templateDatasetMap.size() ; i++) {
+                JSONObject o = (JSONObject) templateDatasetMap.get(i);
+                //every object has description, template_id, and dataset properties.
+                Long tempId = (Long) (o.get("template_id"));// this value is read as Long
+                int tempIdIntVal = tempId.intValue();
+                configMap.put((String) o.get("dataset"), tempIdIntVal);
+            }
+            return configMap;
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Interchanges the content of a map
+     * to return values as keys
+     * @param map
+     * @return Map of values as keys and keys as values
+     */
+    private static Map<Integer, String> reverseMapKeyValues(Map<String, Integer> map) {
+        Map<Integer, String> resMap = new HashMap<Integer, String>();
+        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            resMap.put(entry.getValue(), entry.getKey());
+        }
+        return resMap;
     }
 
 /*    protected boolean validatePatientIdentifier(String identifier) {
