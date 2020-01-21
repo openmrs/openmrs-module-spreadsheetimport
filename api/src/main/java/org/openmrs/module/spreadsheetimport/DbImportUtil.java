@@ -317,8 +317,8 @@ public class DbImportUtil {
         //TODO: explore use of excel configs in place of
         List<GroupedObservations> gObs = null;
         if (template.getId() == 12 || template.getId() == 15) {
-            HTSGroupedObservations observations = new HTSGroupedObservations();
-            gObs = observations.getColumnDefinitions();
+            //HTSGroupedObservations observations = new HTSGroupedObservations();
+            gObs = DbImportUtil.getGroupedDatasetConfigForTemplate();
         }
         int recordCount = 0;
 
@@ -1068,6 +1068,58 @@ public class DbImportUtil {
             resMap.put(entry.getValue(), entry.getKey());
         }
         return resMap;
+    }
+
+    /**
+     * Processes configuration files for a dataset's grouped observations
+     * @return a List of GroupedObservations
+     */
+    protected static List<GroupedObservations> getGroupedDatasetConfigForTemplate() {
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "HtsGroupedObservations.json";
+        JSONParser jsonParser = new JSONParser();
+        try {
+            //Read JSON file
+            FileReader reader = new FileReader(fullFilePath);
+            Object obj = jsonParser.parse(reader);
+
+            JSONArray obsGrp = (JSONArray) obj;
+            List<GroupedObservations> grpObsForDataset = new ArrayList<GroupedObservations>();
+            Map<String,Integer> configMap = new HashMap<String, Integer>();
+
+            for (int i = 0 ; i < obsGrp.size() ; i++) {
+                JSONObject o = (JSONObject) obsGrp.get(i);
+                Long groupingConcept = (Long) (o.get("groupingConcept"));// this value is read as Long
+                JSONArray dsColumns = (JSONArray) o.get("datasetColumns"); // get col definitions
+
+                Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>();
+
+                for (int j=0; j < dsColumns.size(); j++) {
+                    JSONObject colDef = (JSONObject) dsColumns.get(j);
+                    String colName = (String) colDef.get("name");
+                    Long colConceptQuestion = (Long) colDef.get("questionConcept");
+                    String colConceptDataType = (String) colDef.get("dataType");
+                    DatasetColumn cl = new DatasetColumn(colConceptQuestion.intValue(), colConceptDataType);
+                    // key is column name, value is DatasetColumn object
+                    datasetColumns.put(colName, new DatasetColumn(colConceptQuestion.intValue(), colConceptDataType));
+                }
+
+                GroupedObservations gObs = new GroupedObservations();
+                gObs.setGroupConceptId(groupingConcept.intValue());
+                gObs.setDatasetColumns(datasetColumns);
+                grpObsForDataset.add(gObs);
+
+            }
+            System.out.println("Grouped obs config: " + grpObsForDataset);
+            return grpObsForDataset;
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
 /*    protected boolean validatePatientIdentifier(String identifier) {

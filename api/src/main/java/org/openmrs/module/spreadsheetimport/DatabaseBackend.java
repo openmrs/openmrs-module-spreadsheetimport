@@ -917,7 +917,7 @@ public class DatabaseBackend {
                                             columnValues += "," + column.getValue();
                                         } else if (column.getQuestionConceptDatatype().equals("value_text")) {
                                             columnNames += ",value_text";
-                                            columnValues += "," + org.apache.commons.lang.StringEscapeUtils.escapeSql(column.getValue());
+                                            columnValues += "," + column.getValue();
                                         } else if (column.getQuestionConceptDatatype().equals("value_datetime")) {
                                             columnNames += ",value_datetime";
                                             columnValues += "," + column.getValue();

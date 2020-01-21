@@ -1,0 +1,54 @@
+[
+  {
+    "description": "Mapping for test 1 related dataset columns",
+    "groupingConcept": 164410,
+    "datasetColumns": [
+      {
+        "name": "Test_1_Final_Result",
+        "questionConcept": 1040,
+        "dataType": "value_coded"
+      },
+      {
+        "name": "Test_1_Kit_Name",
+        "questionConcept": 164962,
+        "dataType": "value_coded"
+      },
+      {
+        "name": "Test_1_Lot_Number",
+        "questionConcept": 164964,
+        "dataType": "value_text"
+      },
+      {
+        "name": "Test_1_Expiry_Date",
+        "questionConcept": 162502,
+        "dataType": "value_datetime"
+      }
+    ]
+  },
+  {
+    "description": "Mapping for test 2 related dataset columns",
+    "groupingConcept": 164410,
+    "datasetColumns": [
+      {
+        "name": "Test_2_Final_Result",
+        "questionConcept": 1326,
+        "dataType": "value_coded"
+      },
+      {
+        "name": "Test_2_Kit_Name",
+        "questionConcept": 164962,
+        "dataType": "value_coded"
+      },
+      {
+        "name": "Test_2_Lot_Number",
+        "questionConcept": 164964,
+        "dataType": "value_text"
+      },
+      {
+        "name": "Test_2_Expiry_Date",
+        "questionConcept": 162501,
+        "dataType": "value_datetime"
+      }
+    ]
+  }
+]
