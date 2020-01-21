@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -916,7 +917,7 @@ public class DatabaseBackend {
                                             columnValues += "," + column.getValue();
                                         } else if (column.getQuestionConceptDatatype().equals("value_text")) {
                                             columnNames += ",value_text";
-                                            columnValues += "," + column.getValue();
+                                            columnValues += "," + org.apache.commons.lang.StringEscapeUtils.escapeSql(column.getValue());
                                         } else if (column.getQuestionConceptDatatype().equals("value_datetime")) {
                                             columnNames += ",value_datetime";
                                             columnValues += "," + column.getValue();

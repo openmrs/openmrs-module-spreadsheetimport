@@ -16,35 +16,28 @@ package org.openmrs.module.spreadsheetimport.web.controller;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.ibatis.jdbc.ScriptRunner;
-import org.openmrs.api.AdministrationService;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.spreadsheetimport.DbImportUtil;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplate;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
 import org.openmrs.web.WebConstants;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.SessionAttributes;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.sql.DataSource;
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -84,22 +77,7 @@ public class SpreadsheetImportProcessDataFormController {
         String iqcareidtype = getMigrationPrimaryIdentifierType();
 
 
-        Map<String, Integer> tableToTemplateMap = new HashMap<String, Integer>();
-        tableToTemplateMap.put("tr_hiv_enrollment", 8);
-        tableToTemplateMap.put("tr_hiv_program_enrollment", 9);
-        tableToTemplateMap.put("tr_triage", 11);
-        tableToTemplateMap.put("tr_hts_initial", 12);
-        tableToTemplateMap.put("tr_hts_retest", 15);
-        tableToTemplateMap.put("tr_hiv_regimen_history", 23);
-        tableToTemplateMap.put("tr_hiv_followup", 22);
-
-
-        tableToTemplateMap.put("tr_tb_screening", 22);
-        tableToTemplateMap.put("tr_hiv_program_discontinuation", 10);
-        tableToTemplateMap.put("tr_ipt_program", 17);
-        tableToTemplateMap.put("tr_ipt_followup", 19);
-
-
+        Map<String, Integer> tableToTemplateMap = getTemplateDatasetMap();
         String successfulProcessMsg = "proceed";
         SpreadsheetImportTemplate template = null;
 
@@ -195,22 +173,7 @@ public class SpreadsheetImportProcessDataFormController {
                                       HttpServletResponse response) throws Exception {
 
         List<String> messages = new ArrayList<String>();
-        boolean rollbackTransaction = false;
-
-        String iqcareidtype = getMigrationPrimaryIdentifierType();
-
-
-        Map<String, Integer> tableToTemplateMap = new HashMap<String, Integer>();
-        tableToTemplateMap.put("tr_hiv_enrollment", 8);
-        tableToTemplateMap.put("tr_hiv_program_enrollment", 9);
-        tableToTemplateMap.put("tr_triage", 11);
-        tableToTemplateMap.put("tr_hts_initial", 12);
-        tableToTemplateMap.put("tr_hts_retest", 15);
-        tableToTemplateMap.put("tr_hiv_regimen_history", 23);
-        tableToTemplateMap.put("tr_hiv_followup", 22);
         String successfulProcessMsg = "proceed";
-        SpreadsheetImportTemplate template = null;
-
         successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
         System.out.println("Completed processing demographics ");
 
@@ -251,16 +214,7 @@ public class SpreadsheetImportProcessDataFormController {
         boolean rollbackTransaction = false;
 
         String iqcareidtype = getMigrationPrimaryIdentifierType();
-
-
-        Map<String, Integer> tableToTemplateMap = new HashMap<String, Integer>();
-        tableToTemplateMap.put("tr_hiv_enrollment", 8);
-        tableToTemplateMap.put("tr_hiv_program_enrollment", 9);
-        tableToTemplateMap.put("tr_triage", 11);
-        tableToTemplateMap.put("tr_hts_initial", 12);
-        tableToTemplateMap.put("tr_hts_retest", 15);
-        tableToTemplateMap.put("tr_hiv_regimen_history", 23);
-        tableToTemplateMap.put("tr_hiv_followup", 22);
+        Map<String, Integer> tableToTemplateMap = getTemplateDatasetMap();
         String successfulProcessMsg = "proceed";
         SpreadsheetImportTemplate template = null;
 
@@ -415,7 +369,6 @@ public class SpreadsheetImportProcessDataFormController {
     private void doPostDemographics() {
         ResourceDatabasePopulator rdp = new ResourceDatabasePopulator();
         String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "post_demographics_processing_query.sql";
-        System.out.println("File path: " + fullFilePath);
         rdp.addScript(new FileSystemResource(fullFilePath));
         rdp.setSqlScriptEncoding("UTF-8");
         rdp.setIgnoreFailedDrops(true);
@@ -424,7 +377,7 @@ public class SpreadsheetImportProcessDataFormController {
         try {
             conn = getDbConnection();
             rdp.populate(conn);
-            System.out.println("Completed running the script");
+            System.out.println("Completed running post-demographics housekeeping script");
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -436,5 +389,36 @@ public class SpreadsheetImportProcessDataFormController {
                 }
             }
         }
+    }
+
+    protected Map<String, Integer> getTemplateDatasetMap() {
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
+        JSONParser jsonParser = new JSONParser();
+        try {
+            //Read JSON file
+            FileReader reader = new FileReader(fullFilePath);
+            Object obj = jsonParser.parse(reader);
+
+            JSONArray templateDatasetMap = (JSONArray) obj;
+            Map<String,Integer> configMap = new HashMap<String, Integer>();
+
+            for (int i = 0 ; i < templateDatasetMap.size() ; i++) {
+                JSONObject o = (JSONObject) templateDatasetMap.get(i);
+                //every object has description, template_id, and dataset properties.
+                Long tempId = (Long) (o.get("template_id"));// this value is read as Long
+                int tempIdIntVal = tempId.intValue();
+                configMap.put((String) o.get("dataset"), tempIdIntVal);
+            }
+            return configMap;
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }
