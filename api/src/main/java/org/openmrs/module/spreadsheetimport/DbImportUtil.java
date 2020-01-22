@@ -23,9 +23,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -33,7 +31,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -48,8 +45,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Vector;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
@@ -317,7 +312,8 @@ public class DbImportUtil {
         //TODO: explore use of excel configs in place of
         List<GroupedObservations> gObs = null;
         if (template.getId() == 12 || template.getId() == 15) {
-            //HTSGroupedObservations observations = new HTSGroupedObservations();
+            HTSGroupedObservations observations = new HTSGroupedObservations();
+            //gObs = observations.getColumnDefinitions();
             gObs = DbImportUtil.getGroupedDatasetConfigForTemplate();
         }
         int recordCount = 0;
@@ -423,7 +419,6 @@ public class DbImportUtil {
                 }
             }
 
-            //System.out.println("Has data: " + rowHasData + ", patient ID: " + patientId);
 
             /**
              * Extract values of grouped observations here
@@ -460,10 +455,9 @@ public class DbImportUtil {
                                 gO.setHasData(true);
                             }
                         }
-
-                        //System.out.println("Grouped obs values: " + k + ", value: " + value);
-
                     }
+                    gO.setHasData(groupHasData);
+
                 }
             }
 
@@ -988,7 +982,7 @@ public class DbImportUtil {
                 recordCount++;
                 if (recordCount == 1) {
                     System.out.println(new Date().toString() + ":: Completed processing record 1 ::  in demographics dataset");
-                } else if (recordCount%1000==0) {
+                } else if (recordCount%5000==0) {
                     System.out.println(new Date().toString() + ":: Completed Processing record :: " + recordCount + " in demographics dataset");
                 }
             }
@@ -1109,7 +1103,7 @@ public class DbImportUtil {
                 grpObsForDataset.add(gObs);
 
             }
-            System.out.println("Grouped obs config: " + grpObsForDataset);
+            //System.out.println("Grouped obs config: " + grpObsForDataset);
             return grpObsForDataset;
 
         } catch (FileNotFoundException e) {
