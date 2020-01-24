@@ -51,6 +51,10 @@ public class SpreadsheetImportProcessDataFormController {
      * Logger for this class
      */
     protected final Log log = LogFactory.getLog(getClass());
+    List<String> messages = new ArrayList<String>();
+    boolean rollbackTransaction = false;
+
+
 
     @RequestMapping(value = "/module/spreadsheetimport/spreadsheetimportprocessdatasets.form", method = RequestMethod.GET)
     public String setupForm(ModelMap model,
@@ -63,75 +67,13 @@ public class SpreadsheetImportProcessDataFormController {
                                      HttpServletRequest request,
                                      HttpServletResponse response) throws Exception {
 
-        List<String> messages = new ArrayList<String>();
-        boolean rollbackTransaction = false;
 
-        String iqcareidtype = getMigrationPrimaryIdentifierType();
-
-
-        Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
-        String successfulProcessMsg = "proceed";
-        SpreadsheetImportTemplate template = null;
-
+        String successfulProcessMsg = "";
         successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
         System.out.println("Completed processing demographics ");
+        doPostDemographics();
 
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HIV Enrollments ");
-            // step 2: process hiv enrollment encounter
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_enrollment"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-            System.out.println("Completed processing HIV enrollments ");
-        }
-
-        if (successfulProcessMsg != null) {
-            // step 3: process hiv program history
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_program_enrollment"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing regimen history ");
-            // step 3: process hiv art history
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_regimen_history"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HTS initial ");
-            // step 4: process HTS
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_initial"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HTS Retest ");
-
-            // step 4: process HTS
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_retest"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing Triage ");
-
-            // step 4: process triage
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HIV Followup ");
-
-            // step 4: process triage
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_followup"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-        }
-
+        processOtherDatasets();
 
         boolean succeeded = (successfulProcessMsg != null);
 
@@ -164,8 +106,7 @@ public class SpreadsheetImportProcessDataFormController {
                                       HttpServletRequest request,
                                       HttpServletResponse response) throws Exception {
 
-        List<String> messages = new ArrayList<String>();
-        String successfulProcessMsg = "proceed";
+        String successfulProcessMsg = "";
         successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
         System.out.println("Completed processing demographics ");
 
@@ -202,72 +143,9 @@ public class SpreadsheetImportProcessDataFormController {
                                        HttpServletRequest request,
                                        HttpServletResponse response) throws Exception {
 
-        List<String> messages = new ArrayList<String>();
-        boolean rollbackTransaction = false;
+       processOtherDatasets();
 
-        String iqcareidtype = getMigrationPrimaryIdentifierType();
-        Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
-        String successfulProcessMsg = "proceed";
-        SpreadsheetImportTemplate template = null;
-
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HIV Enrollments ");
-            // step 2: process hiv enrollment encounter
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_enrollment"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-        }
-
-        if (successfulProcessMsg != null) {
-            // step 3: process hiv program history
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_program_enrollment"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing regimen history ");
-            // step 3: process hiv art history
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_regimen_history"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HTS initial ");
-            // step 4: process HTS
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_initial"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HTS Retest ");
-
-            // step 4: process HTS
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hts_retest"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing Triage ");
-
-            // step 4: process triage
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_triage"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-        }
-
-        if (successfulProcessMsg != null) {
-            System.out.println("processing HIV Followup ");
-
-            // step 4: process triage
-            template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get("tr_hiv_followup"));
-            successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype);
-        }
-
-
-        boolean succeeded = (successfulProcessMsg != null);
+        boolean succeeded = true;
 
         String messageString = "";
         for (int i = 0; i < messages.size(); i++) {
@@ -379,6 +257,33 @@ public class SpreadsheetImportProcessDataFormController {
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+    }
+
+
+    private void processOtherDatasets() {
+        // get processing order for datasets and associated configs for grouped obs
+
+        Map<String, String> datasetMap = DbImportUtil.getProcessingOrderAndGroupedObsConfig();
+        Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
+        String iqcareidtype = getMigrationPrimaryIdentifierType();
+
+
+        for (Map.Entry<String, String> e : datasetMap.entrySet()) {
+            String dataset = e.getKey();
+            String grpObsConfigFile = e.getValue();
+            SpreadsheetImportTemplate template = null;
+
+
+                System.out.println("processing " + dataset + " dataset ................");
+                template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get(dataset));
+            try {
+                String successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype, grpObsConfigFile);
+                System.out.println("Completed processing " + dataset + " dataset ..............");
+
+            } catch (Exception e1) {
+                e1.printStackTrace();
             }
         }
     }

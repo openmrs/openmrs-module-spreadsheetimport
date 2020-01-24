@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -227,7 +228,7 @@ public class DbImportUtil {
     }
 
     public static String importTemplate(SpreadsheetImportTemplate template,
-                                        List<String> messages, boolean rollbackTransaction, String mainPtIdType) throws Exception {
+                                        List<String> messages, boolean rollbackTransaction, String mainPtIdType, String groupedObsConfigFile) throws Exception {
         MysqlDataSource dataSource = null;
         Connection conn = null;
         Statement s = null;
@@ -242,8 +243,6 @@ public class DbImportUtil {
 
             //System.out.println("Attempting to read from the migration database!");
 
-            // Connect to db
-            //Class.forName("com.mysql.jdbc.Driver").newInstance();
 
             Properties p = Context.getRuntimeProperties();
             String url = p.getProperty("connection.url");
@@ -308,13 +307,10 @@ public class DbImportUtil {
         query = query.replace(":tableName", tableName);
         ResultSet rs = s.executeQuery(query);
 
-        // prototyping grouped obs
-        //TODO: explore use of excel configs in place of
+        // load json config for dataset
         List<GroupedObservations> gObs = null;
-        if (template.getId() == 12 || template.getId() == 15) {
-            HTSGroupedObservations observations = new HTSGroupedObservations();
-            //gObs = observations.getColumnDefinitions();
-            gObs = DbImportUtil.getGroupedDatasetConfigForTemplate();
+        if (groupedObsConfigFile != null && StringUtils.isNotBlank(groupedObsConfigFile)) {
+            gObs = DbImportUtil.getGroupedDatasetConfigForTemplate(groupedObsConfigFile);
         }
         int recordCount = 0;
 
@@ -1068,8 +1064,8 @@ public class DbImportUtil {
      * Processes configuration files for a dataset's grouped observations
      * @return a List of GroupedObservations
      */
-    protected static List<GroupedObservations> getGroupedDatasetConfigForTemplate() {
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "HtsGroupedObservations.json";
+    protected static List<GroupedObservations> getGroupedDatasetConfigForTemplate(String fileName) {
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + fileName;
         JSONParser jsonParser = new JSONParser();
         try {
             //Read JSON file
@@ -1105,6 +1101,39 @@ public class DbImportUtil {
             }
             //System.out.println("Grouped obs config: " + grpObsForDataset);
             return grpObsForDataset;
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @return a LinkedHashMap <dataset, GroupedObsConfig>
+     *     This is an ordered map
+     */
+    public static Map<String, String> getProcessingOrderAndGroupedObsConfig() {
+        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
+        JSONParser jsonParser = new JSONParser();
+        try {
+            //Read JSON file
+            FileReader reader = new FileReader(fullFilePath);
+            Object obj = jsonParser.parse(reader);
+
+            JSONArray templateDatasetMap = (JSONArray) obj;
+            Map<String,String> configMap = new LinkedHashMap<String, String>();
+
+            for (int i = 0 ; i < templateDatasetMap.size() ; i++) {
+                JSONObject o = (JSONObject) templateDatasetMap.get(i);
+                //every object has obsGroupConfig and dataset properties.
+                configMap.put((String) o.get("dataset"), (String) o.get("obsGroupConfig"));
+            }
+            return configMap;
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

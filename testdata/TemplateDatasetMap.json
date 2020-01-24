@@ -2,51 +2,61 @@
   {
     "description": "Applies to processing of HIV enrollment data",
     "template_id": 8,
-    "dataset": "tr_hiv_enrollment"
+    "dataset": "tr_hiv_enrollment",
+    "obsGroupConfig":""
   },
   {
     "description": "Applies to processing of HIV patient program history",
     "template_id": 9,
-    "dataset": "tr_hiv_program_enrollment"
+    "dataset": "tr_hiv_program_enrollment",
+    "obsGroupConfig":""
   },
   {
     "description": "Applies to processing of triage data",
     "template_id": 11,
-    "dataset": "tr_triage"
+    "dataset": "tr_triage",
+    "obsGroupConfig":""
   },
   {
     "description": "Applies to processing of HTS initial data",
     "template_id": 12,
-    "dataset": "tr_hts_initial"
+    "dataset": "tr_hts_initial",
+    "obsGroupConfig": "HtsGroupedObservations.json"
   },
   {
     "description": "Applies to processing of HTS retest data",
     "template_id": 15,
-    "dataset": "tr_hts_retest"
+    "dataset": "tr_hts_retest",
+    "obsGroupConfig": "HtsGroupedObservations.json"
   },
   {
     "description": "Applies to processing of ART regimen history data for patients",
     "template_id": 23,
-    "dataset": "tr_hiv_regimen_history"
+    "dataset": "tr_hiv_regimen_history",
+    "obsGroupConfig":""
   },
   {
     "description": "Processes HIV program follow-up visits",
     "template_id": 22,
-    "dataset": "tr_hiv_followup"
+    "dataset": "tr_hiv_followup",
+    "obsGroupConfig":""
   },
   {
     "description": "Processes HIV program discontinuation data",
     "template_id": 10,
-    "dataset": "tr_hiv_program_discontinuation"
+    "dataset": "tr_hiv_program_discontinuation",
+    "obsGroupConfig":""
   },
   {
     "description": "Processes IPT program patient history",
     "template_id": 17,
-    "dataset": "tr_ipt_program"
+    "dataset": "tr_ipt_program",
+    "obsGroupConfig":""
   },
   {
     "description": "Processes IPT program patient follow-up visits",
     "template_id": 19,
-    "dataset": "tr_ipt_followup"
+    "dataset": "tr_ipt_followup",
+    "obsGroupConfig":""
   }
 ]
