@@ -11,7 +11,7 @@ import java.util.Map;
 public class GroupedObservations {
     private Integer groupConceptId;
     private Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>(); // key is column name, value is DatasetColumn object
-    private boolean hasData;
+    private Boolean hasData;
 
     public GroupedObservations() {
     }
@@ -43,11 +43,11 @@ public class GroupedObservations {
         }
     }
 
-    public boolean hasData() {
+    public Boolean getHasData() {
         return hasData;
     }
 
-    public void setHasData(boolean hasData) {
+    public void setHasData(Boolean hasData) {
         this.hasData = hasData;
     }
 }

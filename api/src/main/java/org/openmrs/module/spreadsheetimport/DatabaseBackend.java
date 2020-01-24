@@ -13,7 +13,6 @@
  */
 package org.openmrs.module.spreadsheetimport;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -346,15 +345,6 @@ public class DatabaseBackend {
         String encounterId = null;
         try {
 
-            // Connect to db
-            /*Class.forName("com.mysql.jdbc.Driver").newInstance();
-
-            Properties p = Context.getRuntimeProperties();
-            String url = p.getProperty("connection.url");
-
-            conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
-                    p.getProperty("connection.password"));*/
-
             conn.setAutoCommit(false);
 
             s = conn.createStatement();
@@ -375,12 +365,6 @@ public class DatabaseBackend {
                 boolean isObservation = "obs".equals(tableName);
 
                 boolean skip = false;
-
-                //System.out.println("Table Name: " + tableName);
-				/*Set<SpreadsheetImportTemplateColumn> columns = rowData.get(uniqueImport);
-                for (SpreadsheetImportTemplateColumn column : columns) {
-					column.setGeneratedKey(patientId);
-				}*/
 
                 // SPECIAL TREATMENT
                 // for encounter, if the data is available in the row, it means we're UPDATING observations for an EXISTING encounter, so we don't have to create encounter
@@ -855,7 +839,7 @@ public class DatabaseBackend {
                     if (groupedObservations != null && !groupedObservations.isEmpty()) {
                         for (GroupedObservations gObs : groupedObservations) {
 
-                            if (gObs.hasData()) {
+                            if (gObs.getHasData()) {
                                 Integer groupConceptId = gObs.getGroupConceptId();
                                 String obsGroupId = null;
 
@@ -876,11 +860,11 @@ public class DatabaseBackend {
                                 columnNames += ",concept_id";
                                 columnValues += "," + groupConceptId;
 
-                                sql = "insert into obs (" + columnNames + ")" + " values ("
+                                String gObsQry = "insert into obs (" + columnNames + ")" + " values ("
                                         + columnValues + ")";
 
                                 Statement grpConceptSt = conn.createStatement();
-                                grpConceptSt.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                                grpConceptSt.executeUpdate(gObsQry, Statement.RETURN_GENERATED_KEYS);
                                 ResultSet grpConceptRs = grpConceptSt.getGeneratedKeys();
                                 grpConceptRs.next();
                                 obsGroupId = grpConceptRs.getString(1);
@@ -891,7 +875,7 @@ public class DatabaseBackend {
 
                                     DatasetColumn column = e.getValue();
 
-                                    if (column.getValue() != null && !column.getValue().equals("")) {
+                                    if (column.getValue() != null && StringUtils.isNotBlank(column.getValue())) {
 
                                         columnNames = "";
                                         columnValues = "";
@@ -926,13 +910,9 @@ public class DatabaseBackend {
                                             columnValues += "," + column.getValue();
                                         }
 
-                                        sql = "insert into obs (" + columnNames + ")" + " values ("
+                                        String childObsQry = "insert into obs (" + columnNames + ")" + " values ("
                                                 + columnValues + ")";
-
-                                        //System.out.println("Generated obs qry: " + sql);
-
-                                        //TODO: try to replace this with a batch
-                                        grpConceptSt.addBatch(sql);
+                                        grpConceptSt.addBatch(childObsQry);
 
                                     }
 
