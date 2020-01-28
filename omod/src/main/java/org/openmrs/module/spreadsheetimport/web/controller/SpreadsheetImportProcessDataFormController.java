@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -41,7 +42,7 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * This controller backs and saves the Spreadsheet Import module settings
+ * This controller handles processing of db datasets
  */
 @Controller
 @RequestMapping("/module/spreadsheetimport/spreadsheetimportprocessdatasets.form")
@@ -53,6 +54,9 @@ public class SpreadsheetImportProcessDataFormController {
     protected final Log log = LogFactory.getLog(getClass());
     List<String> messages = new ArrayList<String>();
     boolean rollbackTransaction = false;
+    String GP_SOURCE_PRIMARY_IDENTIFIER_TYPE_IDENTIFIER_TYPE_UUID = "spreadsheetimport.sourcePrimaryIdentifierType";
+    String GP_MIGRATION_DATABASE = "spreadsheetimport.migrationDatabase";
+    String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
 
 
 
@@ -69,11 +73,12 @@ public class SpreadsheetImportProcessDataFormController {
 
 
         String successfulProcessMsg = "";
-        successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
+        String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
+        successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
         System.out.println("Completed processing demographics ");
         doPostDemographics();
 
-        processOtherDatasets();
+        processOtherDatasets(migrationDatabase);
 
         boolean succeeded = (successfulProcessMsg != null);
 
@@ -107,7 +112,8 @@ public class SpreadsheetImportProcessDataFormController {
                                       HttpServletResponse response) throws Exception {
 
         String successfulProcessMsg = "";
-        successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages);
+        String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
+        successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
         System.out.println("Completed processing demographics ");
 
         doPostDemographics();
@@ -143,7 +149,8 @@ public class SpreadsheetImportProcessDataFormController {
                                        HttpServletRequest request,
                                        HttpServletResponse response) throws Exception {
 
-       processOtherDatasets();
+        String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
+        processOtherDatasets(migrationDatabase);
 
         boolean succeeded = true;
 
@@ -173,11 +180,9 @@ public class SpreadsheetImportProcessDataFormController {
     private String getMigrationPrimaryIdentifierType() {
 
         Connection conn = null;
-
-        //TODO: add this identifier type as global property
-        String IQCARE_PERSON_PK_ID_TYPE = "b3d6de9f-f215-4259-9805-8638c887e46b";
+        String PRIMARY_PERSON_ID_TYPE_SOURCE_UUID = Context.getAdministrationService().getGlobalProperty(GP_SOURCE_PRIMARY_IDENTIFIER_TYPE_IDENTIFIER_TYPE_UUID);
         String mainPtIdType = null;
-        String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + IQCARE_PERSON_PK_ID_TYPE + "'";
+        String mainIdQry = "select patient_identifier_type_id from patient_identifier_type where uuid='" + PRIMARY_PERSON_ID_TYPE_SOURCE_UUID + "'";
 
         try {
 
@@ -238,7 +243,9 @@ public class SpreadsheetImportProcessDataFormController {
      */
     private void doPostDemographics() {
         ResourceDatabasePopulator rdp = new ResourceDatabasePopulator();
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "post_demographics_processing_query.sql";
+        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
+
+        String fullFilePath = configFile.getPath() + File.separator + "post_demographics_processing_query.sql";
         rdp.addScript(new FileSystemResource(fullFilePath));
         rdp.setSqlScriptEncoding("UTF-8");
         rdp.setIgnoreFailedDrops(true);
@@ -262,12 +269,12 @@ public class SpreadsheetImportProcessDataFormController {
     }
 
 
-    private void processOtherDatasets() {
+    private void processOtherDatasets(String migrationDatabase) {
         // get processing order for datasets and associated configs for grouped obs
 
         Map<String, String> datasetMap = DbImportUtil.getProcessingOrderAndGroupedObsConfig();
         Map<String, Integer> tableToTemplateMap = DbImportUtil.getTemplateDatasetMap();
-        String iqcareidtype = getMigrationPrimaryIdentifierType();
+        String primaryIdentifierType = getMigrationPrimaryIdentifierType();
 
 
         for (Map.Entry<String, String> e : datasetMap.entrySet()) {
@@ -279,7 +286,7 @@ public class SpreadsheetImportProcessDataFormController {
                 System.out.println("processing " + dataset + " dataset ................");
                 template = Context.getService(SpreadsheetImportService.class).getTemplateById(tableToTemplateMap.get(dataset));
             try {
-                String successfulProcessMsg = DbImportUtil.importTemplate(template, messages, rollbackTransaction, iqcareidtype, grpObsConfigFile);
+                DbImportUtil.importTemplate(template, messages, rollbackTransaction, primaryIdentifierType, grpObsConfigFile, migrationDatabase);
                 System.out.println("Completed processing " + dataset + " dataset ..............");
 
             } catch (Exception e1) {
