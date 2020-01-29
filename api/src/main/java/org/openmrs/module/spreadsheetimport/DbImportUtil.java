@@ -25,6 +25,7 @@ import org.json.simple.parser.ParseException;
 import org.openmrs.api.context.Context;
 import org.openmrs.util.OpenmrsUtil;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -51,6 +52,8 @@ import java.util.Vector;
  *
  */
 public class DbImportUtil {
+
+    static String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
 
     /** Logger for this class and subclasses */
     protected static final Log log = LogFactory.getLog(SpreadsheetImportUtil.class);
@@ -228,7 +231,7 @@ public class DbImportUtil {
     }
 
     public static String importTemplate(SpreadsheetImportTemplate template,
-                                        List<String> messages, boolean rollbackTransaction, String mainPtIdType, String groupedObsConfigFile) throws Exception {
+                                        List<String> messages, boolean rollbackTransaction, String mainPtIdType, String groupedObsConfigFile, String migrationDatabase) throws Exception {
         MysqlDataSource dataSource = null;
         Connection conn = null;
         Statement s = null;
@@ -259,7 +262,7 @@ public class DbImportUtil {
             s = conn.createStatement();
 
             DatabaseMetaData dmd = conn.getMetaData();
-            ResultSet rsColumns = dmd.getColumns("migration_tr", null, tableToProcess, null);
+            ResultSet rsColumns = dmd.getColumns(migrationDatabase, null, tableToProcess, null);
 
             while (rsColumns.next()) {
                 String colName = rsColumns.getString("COLUMN_NAME");
@@ -303,7 +306,8 @@ public class DbImportUtil {
         // Process rows
         String tableName = tableToTemplateMap.get(template.getId());
 
-        String query = "select * from migration_tr.:tableName";
+        String query = "select * from :migrationDatabase.:tableName";
+        query = query.replace(":migrationDatabase", migrationDatabase);
         query = query.replace(":tableName", tableName);
         ResultSet rs = s.executeQuery(query);
 
@@ -513,7 +517,13 @@ public class DbImportUtil {
         return "Successful import";
     }
 
-    public static String processDemographicsDataset(List<String> messages) {
+    /**
+     * Processor for KenyaEMR demographics.
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
+    public static String processDemographicsDataset(List<String> messages, String migrationDatabase) {
 
         /**
          * compose mapping template for the demographics metadata
@@ -687,7 +697,8 @@ public class DbImportUtil {
 
             s = conn.createStatement();
 
-            String query = "select * from migration_tr.tr_demographics";
+            String query = "select * from :migrationDatabase.tr_demographics";
+            query = query.replace(":migrationDatabase", migrationDatabase);
 
             ResultSet rs = s.executeQuery(query);
             int recordCount = 0;
@@ -836,13 +847,9 @@ public class DbImportUtil {
                 //insertPersonStatement.setString(1, columnValues);
 
                 insertPersonName.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
-                //insertPersonStatement.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
                 ResultSet returnedPersonName = insertPersonName.getGeneratedKeys();
                 returnedPersonName.next();
-                //patientId = returnedPersonName.getInt(1);
                 returnedPersonName.close();
-
-                //=================================
 
                 // process person address
                 columnNames = "";
@@ -1016,7 +1023,9 @@ public class DbImportUtil {
     }
 
     public static Map<String, Integer> getTemplateDatasetMap() {
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
+        String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
+        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
+        String fullFilePath = configFile.getPath() + File.separator + "TemplateDatasetMap.json";
         JSONParser jsonParser = new JSONParser();
         try {
             //Read JSON file
@@ -1065,7 +1074,8 @@ public class DbImportUtil {
      * @return a List of GroupedObservations
      */
     protected static List<GroupedObservations> getGroupedDatasetConfigForTemplate(String fileName) {
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + fileName;
+        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
+        String fullFilePath = configFile.getPath() + File.separator + fileName;
         JSONParser jsonParser = new JSONParser();
         try {
             //Read JSON file
@@ -1074,8 +1084,6 @@ public class DbImportUtil {
 
             JSONArray obsGrp = (JSONArray) obj;
             List<GroupedObservations> grpObsForDataset = new ArrayList<GroupedObservations>();
-            Map<String,Integer> configMap = new HashMap<String, Integer>();
-
             for (int i = 0 ; i < obsGrp.size() ; i++) {
                 JSONObject o = (JSONObject) obsGrp.get(i);
                 Long groupingConcept = (Long) (o.get("groupingConcept"));// this value is read as Long
@@ -1099,7 +1107,6 @@ public class DbImportUtil {
                 grpObsForDataset.add(gObs);
 
             }
-            //System.out.println("Grouped obs config: " + grpObsForDataset);
             return grpObsForDataset;
 
         } catch (FileNotFoundException e) {
@@ -1118,7 +1125,8 @@ public class DbImportUtil {
      *     This is an ordered map
      */
     public static Map<String, String> getProcessingOrderAndGroupedObsConfig() {
-        String fullFilePath = OpenmrsUtil.getApplicationDataDirectory() + "TemplateDatasetMap.json";
+        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
+        String fullFilePath = configFile.getPath() + File.separator + "TemplateDatasetMap.json";
         JSONParser jsonParser = new JSONParser();
         try {
             //Read JSON file
