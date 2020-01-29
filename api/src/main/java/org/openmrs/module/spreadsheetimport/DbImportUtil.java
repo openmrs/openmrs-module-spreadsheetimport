@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -525,6 +526,7 @@ public class DbImportUtil {
      */
     public static String processDemographicsDataset(List<String> messages, String migrationDatabase) {
 
+        //TODO: provide this mapping in a json document that can be modified outside of code
         /**
          * compose mapping template for the demographics metadata
          */
@@ -633,6 +635,7 @@ public class DbImportUtil {
 
         Connection conn = null;
         Statement s = null;
+        PreparedStatement ps = null;
         Exception exception = null;
         Integer upnIdType = null;
         Integer natIdIdType = null;
@@ -666,7 +669,6 @@ public class DbImportUtil {
             }
 
             // get UPN encounter type
-            //String sqlUpnStr = "select patient_identifier_type_id from patient_identifier_type where uuid='" + UNIQUE_PATIENT_NUMBER +"'";
             String sqlUpnStr = "select patient_identifier_type_id from patient_identifier_type where uuid='" + UNIQUE_PATIENT_NUMBER +"'";
             ResultSet rs1 = null;
             try {
@@ -731,15 +733,7 @@ public class DbImportUtil {
                 fName = rs.getString(COL_FIRST_NAME);
                 mName = rs.getString(COL_MIDDLE_NAME);
                 lName = rs.getString(COL_LAST_NAME);
-
-
-
-                // extract dob
                 dob = rs.getDate(COL_DOB);
-                //dob = "'" + new java.sql.Timestamp(dob.getTime()).toString() + "'";
-
-
-                // extract gender
                 sex = rs.getString(COL_SEX);
 
                 // extract identifiers
@@ -757,163 +751,56 @@ public class DbImportUtil {
                 landMark = rs.getString(COL_LAND_MARK);
                 postalAddress = rs.getString(COL_POSTAL_ADDRESS);
                 nearestHealthCenter = rs.getString("Nearest_Health_Centre");
-                //rs.close(); //
-
-
-                String columnNames = "";
-                String columnValues = "";
-
-                columnNames += "date_created";
-                columnValues += "now()";
-
-                // creator
-                columnNames += ",creator";
-                columnValues += "," + Context.getAuthenticatedUser().getId();
-
-                // uuids
-                columnNames += ",uuid";
-                columnValues += ",uuid()";
-
-                // process into person table
-                if (sex != null) {
-                    columnNames += ",gender";
-                    columnValues += ",'" + sex + "'";
-                }
-
-                if (dob != null) {
-                    columnNames += ",birthdate";
-                    //"'" + new java.sql.Timestamp(date.getTime()).toString() + "'"
-                    columnValues += ",'" + new java.sql.Timestamp(dob.getTime()).toString() + "'";
-                }
-
 
                 // insert person query
-                sql = "insert into person (" + columnNames + ")" + " values ("
-                        + columnValues + ")";
+                sql = "insert into person (date_created, uuid, creator, gender, birthdate) " +
+                        "values (now(), uuid(), ?, ?, ?);";
 
-                //System.out.println(" person query: " + sql);
-
-                Statement insertPerson = conn.createStatement();
-                insertPerson.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertPerson = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                insertPerson.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertPerson.setString(2, sex);
+                insertPerson.setTimestamp(3, (dob != null && !dob.equals("")) ? new java.sql.Timestamp(dob.getTime()) : null);
+                insertPerson.executeUpdate();
                 ResultSet returnedPerson = insertPerson.getGeneratedKeys();
                 returnedPerson.next();
                 patientId = returnedPerson.getInt(1);
                 returnedPerson.close();
 
                 // process into person name
-                columnNames = "";
-                columnValues = "";
 
-                columnNames += "date_created";
-                columnValues += "now()";
-
-                // creator
-                columnNames += ",creator";
-                columnValues += "," + Context.getAuthenticatedUser().getId();
-
-                // uuids
-                columnNames += ",uuid";
-                columnValues += ",uuid()";
-
-                // person_id
-                columnNames += ",person_id";
-                columnValues += "," + patientId.intValue();
-
-                if (fName != null && !fName.equals("")) {
-                    // first name
-                    columnNames += ",given_name";
-                    columnValues += ",\"" + fName + "\"";
-                }
-
-                if (mName != null && !mName.equals("")) {
-                    // middle name
-                    columnNames += ",middle_name";
-                    columnValues += ",\"" + mName + "\"";
-                }
-                if (lName != null && !lName.equals("")) {
-                    // family name
-                    columnNames += ",family_name";
-                    columnValues += ",\"" + lName + "\"";
-                }
-
-                // insert person query
-                sql = "insert into person_name (" + columnNames + ")" + " values ("
-                        + columnValues + ")";
-                //System.out.println(" person name query: " + sql + ",columns: " + columnValues);
+                sql = "insert into person_name " +
+                        "(date_created, uuid, creator,person_id, given_name, middle_name, family_name) " +
+                        "values (now(),uuid(),?,?,?,?,?);";
 
                 // execute query
-                Statement insertPersonName = conn.createStatement();
-                //PreparedStatement insertPersonStatement= conn.prepareStatement(sql );
-                //insertPersonStatement.setString(1, columnValues);
-
-                insertPersonName.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertPersonName = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                insertPersonName.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertPersonName.setInt(2, patientId.intValue()); // set person id
+                insertPersonName.setString(3, fName);
+                insertPersonName.setString(4, mName);
+                insertPersonName.setString(5, lName);
+                insertPersonName.executeUpdate();
                 ResultSet returnedPersonName = insertPersonName.getGeneratedKeys();
                 returnedPersonName.next();
                 returnedPersonName.close();
 
                 // process person address
-                columnNames = "";
-                columnValues = "";
 
+                sql = "insert into person_address " +
+                        "(date_created, uuid, creator, person_id, county_district, state_province, address4, city_village, address2, address1)  " +
+                        " values(now(),uuid(), ?, ?, ?, ?, ?, ?, ?, ?);";
 
-                columnNames += "date_created";
-                columnValues += "now()";
+                PreparedStatement insertPersonAddress = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                insertPersonAddress.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertPersonAddress.setInt(2, patientId.intValue()); // set person id
+                insertPersonAddress.setString(3, county);
+                insertPersonAddress.setString(4, subCounty);
+                insertPersonAddress.setString(5, ward);
+                insertPersonAddress.setString(6, village);
+                insertPersonAddress.setString(7, landMark);
+                insertPersonAddress.setString(8, postalAddress);
 
-                // creator
-                columnNames += ",creator";
-                columnValues += "," + Context.getAuthenticatedUser().getId();
-
-                // uuids
-                columnNames += ",uuid";
-                columnValues += ",uuid()";
-
-                // person_id
-                columnNames += ",person_id";
-                columnValues += "," + patientId.intValue();
-
-                if (county != null && !county.equals("")) {
-                    // family name
-                    columnNames += ",county_district";
-                    columnValues += ",\"" + county + "\""; // use double quotes to take care of apostrophe in the text
-                }
-
-                if (subCounty != null && !subCounty.equals("")) {
-                    // family name
-                    columnNames += ",state_province";
-                    columnValues += ",\"" + subCounty + "\"";
-                }
-
-                if (ward != null && !ward.equals("")) {
-                    // family name
-                    columnNames += ",address4";
-                    columnValues += ",\"" + ward + "\"";
-                }
-
-                if (village != null && !village.equals("")) {
-                    // family name
-                    columnNames += ",city_village";
-                    columnValues += ",\"" + village + "\"";
-                }
-
-                if (landMark != null && !landMark.equals("")) {
-                    // family name
-                    columnNames += ",address2";
-                    columnValues += ",\"" + landMark + "\"";
-                }
-
-                if (postalAddress != null && !postalAddress.equals("")) {
-                    // family name
-                    columnNames += ",address1";
-                    columnValues += ",\"" + postalAddress + "\"";
-                }
-
-                // insert into person address
-                sql = "insert into person_address (" + columnNames + ")" + " values ("
-                        + columnValues + ")";
-
-
-                Statement insertPersonAddress = conn.createStatement();
-                insertPersonAddress.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                insertPersonAddress.executeUpdate();
                 ResultSet returnedPersonAddress = insertPersonAddress.getGeneratedKeys();
                 returnedPersonAddress.next();
                 returnedPersonAddress.close();
@@ -944,38 +831,19 @@ public class DbImportUtil {
 
                     colValue = rs.getString(colName);
                     if (colValue != null && !colValue.equals("")) {
-                        columnNames = "";
-                        columnValues = "";
 
-                        columnNames += "date_created";
-                        columnValues += "now()";
+                        sql = "insert into patient_identifier " +
+                                "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
+                                "values (now(),uuid(), NULL,?,?,?,?);";
 
-                        // creator
-                        columnNames += ",creator";
-                        columnValues += "," + Context.getAuthenticatedUser().getId();
+                        PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
 
-                        // uuids
-                        columnNames += ",uuid";
-                        columnValues += ",uuid()";
+                        insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                        insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
+                        insertIdentifierStatement.setInt(3, idTypeId.intValue());
+                        insertIdentifierStatement.setString(4, colValue);
 
-                        // patient_id
-                        columnNames += ",patient_id";
-                        columnValues += "," + patientId.intValue();
-
-                        // location_id
-                        columnNames += ", location_id";
-                        columnValues += ", NULL";
-
-                        columnNames += ",identifier_type";
-                        columnValues += "," + idTypeId.intValue();
-
-                        columnNames += ",identifier";
-                        columnValues += ",'" + colValue + "'";
-                        sql = "insert into patient_identifier (" + columnNames + ")" + " values ("
-                                + columnValues + ")";
-
-                        Statement insertIdentifierStatement = conn.createStatement();
-                        insertIdentifierStatement.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS);
+                        insertIdentifierStatement.executeUpdate();
                         ResultSet returnedId = insertIdentifierStatement.getGeneratedKeys();
                         returnedId.next();
                         returnedId.close();
