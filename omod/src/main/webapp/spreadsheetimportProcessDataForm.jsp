@@ -20,14 +20,29 @@
 <%@ page pageEncoding="UTF-8" %>
 <%@ page contentType="text/html; charset=UTF-8" %>
 
-<script type="text/javascript">
+<style>
+    table {
+        border-collapse: collapse;
+        width: 40%;
+    }
 
-    var reportDate;
+    tr:nth-child(even) {background-color: #f2f2f2;}
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+    }
+
+</style>
+
+<script type="text/javascript">
 
     $j(document).ready(function () {
 
         $j("#migrateAll").click(function(event){
             event.preventDefault();
+            $j("#completionMsg").html("Migration process has started");
+            $j(this).attr('disabled', true);
             processAllDatasets();
         });
 
@@ -37,9 +52,8 @@
 
 
     function processAllDatasets() {
-        DWRMigrationService.processAllDatasets(function(mapResult){
-
-            console.log(mapResult);
+        DWRMigrationService.processAllDatasets(function(completionMsg){
+            $j("#completionMsg").html(completionMsg);
         });
     }
 
@@ -63,13 +77,14 @@
 <form method="post" enctype="multipart/form-data">
     <form:errors path="*" cssClass="error"/>
 
-    <h3>Choose dataset(s) to migrate</h3>
-	<p>1. <input type="submit" name="Demographics" value="Demographics"/></p>
-    <p>2. <input type="submit" name="Others" value="Others"/></p>
-    <p>3. <input type="submit" name="All" value="All"/></p>
-
+    <h3>Migrate Data</h3>
     <br/>
     <button id="migrateAll">Migrate all Datasets</button>
+    <br/>
+    <br/>
+    <div id="completionMsg"></div>
+
+    <br/>
 
 
     <table id="migrationUpdates">
@@ -77,7 +92,6 @@
         <tr>
             <th>Dataset Name</th>
             <th>Records processed</th>
-            <th>Time taken</th>
         </tr>
         </thead>
         <tbody>

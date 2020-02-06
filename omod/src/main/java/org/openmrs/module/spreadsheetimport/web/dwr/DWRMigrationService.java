@@ -46,7 +46,7 @@ public class DWRMigrationService {
 
 	public String processAllDatasets() throws Exception {
 
-
+		long startTime = System.nanoTime();
 		String successfulProcessMsg = "";
 		String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
@@ -55,6 +55,8 @@ public class DWRMigrationService {
 
 		processOtherDatasets(migrationDatabase);
 
+		long endTime = System.nanoTime();
+		long timeTaken = (endTime - startTime)/1000/60;
 		boolean succeeded = (successfulProcessMsg != null);
 
 		String messageString = "";
@@ -65,7 +67,7 @@ public class DWRMigrationService {
 			messageString += messages.get(i);
 		}
 		if (succeeded) {
-			messageString += "<br />Successfully processed all datasets!";
+			messageString += "Successfully migrated all data. Time taken in minutes: " + timeTaken;
 		}
 
 		return messageString;

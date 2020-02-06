@@ -539,6 +539,7 @@ public class DbImportUtil {
         /**
          * compose mapping template for the demographics metadata
          */
+        long startTime = System.nanoTime();
 
         String NEXT_OF_KIN_ADDRESS = "7cf22bec-d90a-46ad-9f48-035952261294";
         String NEXT_OF_KIN_CONTACT = "342a1d39-c541-4b29-8818-930916f4c2dc";
@@ -857,6 +858,8 @@ public class DbImportUtil {
 
                     }
                 }
+                long endTime = System.nanoTime();
+                Properties prop = new Properties();
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMap("Demographics", recordCount);
 
