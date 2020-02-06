@@ -84,24 +84,28 @@
 		</description>
 	</globalProperty>
 	/Required Global Properties -->
-	
-	<!--
+
 	<dwr>
 		<allow>
-			<create creator="new" javascript="DWRFormEntryService">
-				<param name="class" value="org.openmrs.module.@MODULE_ID@.web.DWRFormEntryService"/>
-				<include method="enterForm"/>
+			<create creator="new" javascript="DWRMigrationService">
+				<param name="class" value="${project.parent.groupId}.spreadsheetimport.web.dwr.DWRMigrationService"/>
+				<include method="getMigrationDatasetUpdates"/>
+				<include method="processAllDatasets"/>
 			</create>
+			<!--<convert match="org.openmrs.module.evrreports.UserFacility" converter="bean" />
+			<convert match="org.openmrs.Location" converter="bean" />
+			<convert match="org.openmrs.User" converter="bean"/>-->
 		</allow>
 
 		<signatures>
 			<![CDATA[
-			import @MODULE_PACKAGE@.web.DWRFormEntryService;
-			DWRFormEntryService.enterForm(Integer patientId, Integer formId, boolean useEncounter, List<String> fields);
+			import ${project.parent.groupId}.spreadsheetimport.web.dwr.DWRMigrationService;
+			DWRMigrationService.getMigrationDatasetUpdates();
+			DWRMigrationService.processAllDatasets();
+
 			]]>
-		</signatures>	
+		</signatures>
 	</dwr>
-	-->
 	
 	<!-- Servlets -->
 	<!-- Accessed through the url /pageContext()/moduleServlet/<moduleId>/<servlet-name> 

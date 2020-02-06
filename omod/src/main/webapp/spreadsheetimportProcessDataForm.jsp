@@ -20,6 +20,46 @@
 <%@ page pageEncoding="UTF-8" %>
 <%@ page contentType="text/html; charset=UTF-8" %>
 
+<script type="text/javascript">
+
+    var reportDate;
+
+    $j(document).ready(function () {
+
+        $j("#migrateAll").click(function(event){
+            event.preventDefault();
+            processAllDatasets();
+        });
+
+        setInterval(getMigrationDatasetUpdates, 20000);
+
+    });
+
+
+    function processAllDatasets() {
+        DWRMigrationService.processAllDatasets(function(mapResult){
+
+            console.log(mapResult);
+        });
+    }
+
+    function getMigrationDatasetUpdates() {
+        DWRMigrationService.getMigrationDatasetUpdates(function(mapResult){
+            $j("#migrationUpdates").find("tbody").empty();
+            var tableRef = document.getElementById("migrationUpdates").getElementsByTagName('tbody')[0];
+            for (var key in mapResult) {
+
+                var myHtmlContent = "<td>" + key + "</td><td>" + mapResult[key] + "</td>";
+                var newRow = tableRef.insertRow(tableRef.rows.length);
+                newRow.innerHTML = myHtmlContent;
+            }
+        });
+    }
+
+
+
+</script>
+
 <form method="post" enctype="multipart/form-data">
     <form:errors path="*" cssClass="error"/>
 
@@ -27,6 +67,25 @@
 	<p>1. <input type="submit" name="Demographics" value="Demographics"/></p>
     <p>2. <input type="submit" name="Others" value="Others"/></p>
     <p>3. <input type="submit" name="All" value="All"/></p>
+
+    <br/>
+    <button id="migrateAll">Migrate all Datasets</button>
+
+
+    <table id="migrationUpdates">
+        <thead>
+        <tr>
+            <th>Dataset Name</th>
+            <th>Records processed</th>
+            <th>Time taken</th>
+        </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
 </form>
+
+
 
 <%@ include file="/WEB-INF/template/footer.jsp"%>

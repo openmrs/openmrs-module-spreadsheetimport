@@ -54,12 +54,19 @@ import java.util.Vector;
  */
 public class DbImportUtil {
 
+    public static Map<String, Integer> migrationProgressMap = new LinkedHashMap<String, Integer>();
+
     static String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
 
     /** Logger for this class and subclasses */
     protected static final Log log = LogFactory.getLog(SpreadsheetImportUtil.class);
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+
+    public static void updateMigrationProgressMap(String dataset, Integer rowCount) {
+
+        migrationProgressMap.put(dataset, rowCount);
+    }
 
 
     /**
@@ -468,6 +475,8 @@ public class DbImportUtil {
                     //DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
                     recordCount++;
+                    DbImportUtil.updateMigrationProgressMap(template.getName(), recordCount);
+
 
                     if (recordCount == 1) {
                         System.out.println(new Date().toString() + ":: Completed processing record 1 ::  for template " + template.getName());
@@ -635,8 +644,6 @@ public class DbImportUtil {
 
         Connection conn = null;
         Statement s = null;
-        PreparedStatement ps = null;
-        Exception exception = null;
         Integer upnIdType = null;
         Integer natIdIdType = null;
         Integer iqCarePkType = null;
@@ -851,6 +858,8 @@ public class DbImportUtil {
                     }
                 }
                 recordCount++;
+                DbImportUtil.updateMigrationProgressMap("Demographics", recordCount);
+
                 if (recordCount == 1) {
                     System.out.println(new Date().toString() + ":: Completed processing record 1 ::  in demographics dataset");
                 } else if (recordCount%5000==0) {
