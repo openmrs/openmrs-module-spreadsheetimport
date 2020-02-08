@@ -41,7 +41,7 @@
 
         $j("#migrateAll").click(function(event){
             event.preventDefault();
-            $j("#completionMsg").html("Migration process has started");
+            $j("#completionMsg").html("Migration process has started. Please check progress in the table below");
             $j(this).attr('disabled', true);
             processAllDatasets();
         });
@@ -63,7 +63,7 @@
             var tableRef = document.getElementById("migrationUpdates").getElementsByTagName('tbody')[0];
             for (var key in mapResult) {
 
-                var myHtmlContent = "<td>" + key + "</td><td>" + mapResult[key] + "</td>";
+                var myHtmlContent = "<td>" + key + "</td><td>" + mapResult[key].totalRowCount + "</td><td>" + mapResult[key].processedCount + "</td>";
                 var newRow = tableRef.insertRow(tableRef.rows.length);
                 newRow.innerHTML = myHtmlContent;
             }
@@ -91,7 +91,8 @@
         <thead>
         <tr>
             <th>Dataset Name</th>
-            <th>Records processed</th>
+            <th>Total Records</th>
+            <th>Total processed</th>
         </tr>
         </thead>
         <tbody>

@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /**
  * DWR service for AMRS Reports web pages
@@ -40,23 +41,25 @@ public class DWRMigrationService {
 	String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
 
 
-	public Map<String, Integer> getMigrationDatasetUpdates() {
+	public Map<String, Properties> getMigrationDatasetUpdates() {
 		return DbImportUtil.migrationProgressMap;
 	}
 
 	public String processAllDatasets() throws Exception {
 
+
 		long startTime = System.nanoTime();
 		String successfulProcessMsg = "";
 		String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
+		DbImportUtil.setRowCountForDatasets(migrationDatabase);
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
-		System.out.println("Completed processing demographics ");
 		doPostDemographics();
 
 		processOtherDatasets(migrationDatabase);
 
 		long endTime = System.nanoTime();
-		long timeTaken = (endTime - startTime)/1000/60;
+		long timeTaken = endTime - startTime;
+		long timeTakenInMin = TimeUnit.MINUTES.convert(timeTaken, TimeUnit.NANOSECONDS);
 		boolean succeeded = (successfulProcessMsg != null);
 
 		String messageString = "";
@@ -67,7 +70,7 @@ public class DWRMigrationService {
 			messageString += messages.get(i);
 		}
 		if (succeeded) {
-			messageString += "Successfully migrated all data. Time taken in minutes: " + timeTaken;
+			messageString += "Successfully migrated all data. Time taken in minutes: " + timeTakenInMin;
 		}
 
 		return messageString;
@@ -190,4 +193,5 @@ public class DWRMigrationService {
 			}
 		}
 	}
+
 }
