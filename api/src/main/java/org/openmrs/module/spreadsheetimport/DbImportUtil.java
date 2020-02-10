@@ -23,6 +23,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
 
 import java.io.File;
@@ -54,12 +55,26 @@ import java.util.Vector;
  */
 public class DbImportUtil {
 
+    public static Map<String, Properties> migrationProgressMap = new LinkedHashMap<String, Properties>();
+
     static String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
 
     /** Logger for this class and subclasses */
     protected static final Log log = LogFactory.getLog(SpreadsheetImportUtil.class);
 
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+
+    public static void updateMigrationProgressMapProperty(String dataset, String key, String value) {
+        if (migrationProgressMap.get(dataset) != null) {
+            migrationProgressMap.get(dataset).setProperty(key, value);
+        } else {
+            Properties p = new Properties();
+            p.setProperty(key, value);
+            migrationProgressMap.put(dataset, p);
+        }
+
+    }
+
 
 
     /**
@@ -468,12 +483,14 @@ public class DbImportUtil {
                     //DatabaseBackend.validateData(rowData);
                     String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
                     recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty(template.getName(),"processedCount", String.valueOf(recordCount));
 
-                    if (recordCount == 1) {
+
+                    /*if (recordCount == 1) {
                         System.out.println(new Date().toString() + ":: Completed processing record 1 ::  for template " + template.getName());
                     } else if (recordCount%1000 == 0) {
                         System.out.println(new Date().toString() + ":: Completed processing record :: " + recordCount + " for template " + template.getName());
-                    }
+                    }*/
                     /*if (encounterId != null) {
                         for (UniqueImport uniqueImport : rowData.keySet()) {
                             Set<SpreadsheetImportTemplateColumn> columnSet = rowData.get(uniqueImport);
@@ -530,6 +547,7 @@ public class DbImportUtil {
         /**
          * compose mapping template for the demographics metadata
          */
+        long startTime = System.nanoTime();
 
         String NEXT_OF_KIN_ADDRESS = "7cf22bec-d90a-46ad-9f48-035952261294";
         String NEXT_OF_KIN_CONTACT = "342a1d39-c541-4b29-8818-930916f4c2dc";
@@ -635,8 +653,6 @@ public class DbImportUtil {
 
         Connection conn = null;
         Statement s = null;
-        PreparedStatement ps = null;
-        Exception exception = null;
         Integer upnIdType = null;
         Integer natIdIdType = null;
         Integer iqCarePkType = null;
@@ -850,12 +866,15 @@ public class DbImportUtil {
 
                     }
                 }
+
                 recordCount++;
-                if (recordCount == 1) {
+                DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
+
+                /*if (recordCount == 1) {
                     System.out.println(new Date().toString() + ":: Completed processing record 1 ::  in demographics dataset");
                 } else if (recordCount%5000==0) {
                     System.out.println(new Date().toString() + ":: Completed Processing record :: " + recordCount + " in demographics dataset");
-                }
+                }*/
             }
 
         } catch (IllegalAccessException e) {
@@ -901,7 +920,7 @@ public class DbImportUtil {
             Object obj = jsonParser.parse(reader);
 
             JSONArray templateDatasetMap = (JSONArray) obj;
-            Map<String,Integer> configMap = new HashMap<String, Integer>();
+            Map<String,Integer> configMap = new LinkedHashMap<String, Integer>();
 
             for (int i = 0 ; i < templateDatasetMap.size() ; i++) {
                 JSONObject o = (JSONObject) templateDatasetMap.get(i);
@@ -1021,6 +1040,73 @@ public class DbImportUtil {
         return null;
     }
 
+    public static void setRowCountForDatasets(String migrationDatabase) {
+
+        MysqlDataSource dataSource = null;
+        Connection conn = null;
+        Statement s = null;
+        Map<String, Properties> datasetRowCountMap = new LinkedHashMap<String, Properties>();
+        String demographicsTableName = "tr_demographics";
+
+        try {
+            Map<String, Integer> templateMap = getTemplateDatasetMap();
+
+            Properties p = Context.getRuntimeProperties();
+            String url = p.getProperty("connection.url");
+
+            dataSource = new MysqlDataSource();
+            dataSource.setURL(url);
+            dataSource.setUser(p.getProperty("connection.username"));
+            dataSource.setPassword(p.getProperty("connection.password"));
+
+            conn = dataSource.getConnection();
+            s = conn.createStatement();
+            SpreadsheetImportService spreadsheetImportService = Context.getService(SpreadsheetImportService.class);
+
+            // process for demographics
+
+            String query = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            query = query.replace(":migrationDatabase", migrationDatabase);
+            query = query.replace(":tableName", demographicsTableName);
+            ResultSet rs = s.executeQuery(query);
+            rs.next();
+            DbImportUtil.updateMigrationProgressMapProperty("Demographics", "totalRowCount", String.valueOf(rs.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(0));
+            rs.close();
+
+            // add other datasets
+            for (Map.Entry<String, Integer> entry : templateMap.entrySet()) {
+
+
+                String countQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+                countQuery = countQuery.replace(":migrationDatabase", migrationDatabase);
+                countQuery = countQuery.replace(":tableName", entry.getKey());
+                ResultSet countRs = s.executeQuery(countQuery);
+                countRs.next();
+                SpreadsheetImportTemplate template = spreadsheetImportService.getTemplateById(entry.getValue());
+                DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "totalRowCount", String.valueOf(countRs.getInt("rowCount")));
+                DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(0));
+
+                countRs.close();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                }
+                catch (Exception e) {}
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                }
+                catch (Exception e) {}
+            }
+        }
+
+    }
 /*    protected boolean validatePatientIdentifier(String identifier) {
         String pitId = getPrespecifiedPatientIdentifierTypeIdFromPatientIdentifierColumn(piColumn);
         if (pitId == null)
