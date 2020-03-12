@@ -1270,10 +1270,10 @@ public class DbImportUtil {
                 String createTestOrdersql = "insert into test_order (order_id) " +
                         "values (?);";
 
-                String createNumericObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_numeric, patient_id) " +
+                String createNumericObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_numeric, person_id) " +
                         "values (?, uuid(), ?, ?, ?, ?, ?, ?, ?);";
 
-                String createCodedObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_coded, patient_id) " +
+                String createCodedObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_coded, person_id) " +
                         "values (?, uuid(), ?, ?, ?, ?, ?, ?, ?);";
 
                 String getLabEncounterOnDaySql = "SELECT encounter_id from encounter where encounter_type=? and date(encounter_datetime)=date(?)  and patient_id=? limit 1";
@@ -1312,7 +1312,7 @@ public class DbImportUtil {
                     Integer order = null;
 
                     if (StringUtils.isNotBlank(testResult)) { // handle lab result. create encounter, order, lab test, and obs for the result
-                        if (StringUtils.isNotBlank(orderNumber) && dateTestRequested != null && encounterDate != null && patientId != null) {
+                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null) {
 
                             getEncounterOnDay.setInt(1, labMetadata.getEncounterTypeId());
                             getEncounterOnDay.setDate(2, new java.sql.Date(encounterDate.getTime()));
@@ -1324,8 +1324,7 @@ public class DbImportUtil {
                                 orderEncounter = rsGetEncounter.getInt(1);
                                 rsGetEncounter.close();
                             } else {
-                                log.info("Patient ID: ============> " + patientId);
-                                System.out.println("Patient ID: ============> " + patientId);
+
                                 insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
                                 insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
                                 insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
@@ -1353,7 +1352,7 @@ public class DbImportUtil {
                                 }
 
                                 insertOrder.setInt(5, orderEncounter);
-                                insertOrder.setInt(6, Context.getAuthenticatedUser().getUserId()); // set provider
+                                insertOrder.setInt(6, 1); // set provider TODO: set provider id
                                 insertOrder.setInt(7, orderReason); // set order reason
                                 insertOrder.setString(8, "ROUTINE"); // set order urgency
                                 insertOrder.setString(9, "DISCONTINUE"); // set order action
@@ -1390,36 +1389,35 @@ public class DbImportUtil {
                                 rsNewOrder.close();
                             }
 
+                            // create lab test
+                            insertTestOrder.setInt(1, order);
+                            insertTestOrder.executeUpdate();
+
+                            // create obs with result
+                            //                "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_coded, patient_id) " +
+
+                            PreparedStatement psObs = null;
+                            if (testResult.trim().equals("LDL")) {
+                                psObs = insertCodedObs;
+                                psObs.setInt(6, LabOrderDetails.HIV_VIRAL_LOAD_QUALITATIVE);
+                                psObs.setInt(7, LabOrderDetails.NOT_DETECTED);
+
+                            } else {
+                                psObs = insertNumericObs;
+                                psObs.setInt(6, labTest);
+                                psObs.setDouble(7, Double.parseDouble(testResult));
+                            }
+
+                            psObs.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                            psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
+                            psObs.setInt(4, orderEncounter);
+                            psObs.setInt(5, order);
+
+                            psObs.setInt(8, patientId);
+                            psObs.executeUpdate();
+
                         }
-
-                        // create lab test
-                        insertTestOrder.setInt(1, order);
-                        insertTestOrder.executeUpdate();
-
-                        // create obs with result
-                        //                "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, order_id, concept_id, value_coded, patient_id) " +
-
-                        PreparedStatement psObs = null;
-                        if (testResult.trim().equals("LDL")) {
-                            psObs = insertCodedObs;
-                            psObs.setInt(6, LabOrderDetails.HIV_VIRAL_LOAD_QUALITATIVE);
-                            psObs.setInt(7, LabOrderDetails.NOT_DETECTED);
-
-                        } else {
-                            psObs = insertNumericObs;
-                            psObs.setInt(6, labTest);
-                            psObs.setDouble(7, Double.parseDouble(testResult));
-                        }
-
-                        psObs.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                        psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                        psObs.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                        psObs.setInt(4, encounterId);
-                        psObs.setInt(5, order);
-
-                        psObs.setInt(8, patientId);
-                        psObs.executeUpdate();
-
 
                     } else { // handle a pending order result
                         if (labTest.equals(LabOrderDetails.HIV_VIRAL_LOAD)) {
@@ -1430,50 +1428,8 @@ public class DbImportUtil {
 
                     }
 
-                    // if either of the order columns have value then create and order
-
-                    /**
-                     * for a lab order
-                     * create/get a lab encounter on the date of order
-                     * +----------------+------------+-------------+---------+---------------------+---------+---------------------+--------------------------------------+
-                     | encounter_type | patient_id | location_id | form_id | encounter_datetime  | creator | date_created        | uuid                                 |
-                     +----------------+------------+-------------+---------+---------------------+---------+---------------------+--------------------------------------+
-
-                     * create order and assign the encounter - orders
-                     * String TEST_ORDER_TYPE_UUID = "52a447d3-a64a-11e3-9aeb-50e549534c5e";
-                     * +---------------+------------+---------+--------------+---------------------+---------------------+--------------+---------+--------------+--------------+--------------+----------------+
-                     | order_type_id | concept_id | orderer | encounter_id | date_activated      | date_stopped        | order_reason | urgency | order_number | order_action | care_setting | order_group_id |
-                     +---------------+------------+---------+--------------+---------------------+---------------------+--------------+---------+--------------+--------------+--------------+----------------+
-                     |
-                     *
-                     */
-
-                    /**
-                     * create an encounter of type lab order
-                     */
-
-                    sql = "insert into encounter (date_created, uuid, creator, encounter_datetime, encounter_type, patient_id) " +
-                            "values (now(), uuid(), ?, ?, ?, ?, ?);";
-
-                    // create an order
-                    /**
-                     * order_action (text) = NEW if no result and DISCONTINUE is result is provided
-                     * order_reason (coded) to be handled at transformation phase
-                     * urgency (text) = ROUTINE or STAT and is text
-                     * care_setting =
-                     */
-                    sql = "insert into orders (date_created, uuid, creator, order_type_id, concept_id, encounter_id, orderer, order_reason, urgency, order_action,date_activated, care_setting, patient_id) " +
-                            "values (now(), uuid(), ?, ?, ?, ?, ?);";
-
-
-                    // insert person query
-                    sql = "insert into obs (date_created, uuid, creator, obs_datetime, concept_id, value_numeric, person_id) " +
-                            "values (now(), uuid(), ?, ?, ?, ?, ?);";
-
-
-
                     recordCount++;
-                    DbImportUtil.updateMigrationProgressMapProperty("Lab extracts", "processedCount", String.valueOf(recordCount));
+                    DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "processedCount", String.valueOf(recordCount));
 
                 }
 
@@ -1590,6 +1546,14 @@ public class DbImportUtil {
 
                 countRs.close();
             }
+
+            String labQuery = "select count(*) as rowCount from :migrationDatabase.tr_vital_labs";
+            labQuery = labQuery.replace(":migrationDatabase", migrationDatabase);
+            ResultSet rsLabs = s.executeQuery(labQuery);
+            rsLabs.next();
+            DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "totalRowCount", String.valueOf(rsLabs.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "processedCount", String.valueOf(0));
+            rs.close();
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
