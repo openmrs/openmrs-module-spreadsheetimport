@@ -8,21 +8,15 @@ import org.openmrs.module.spreadsheetimport.DbImportUtil;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplate;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
-import org.openmrs.web.WebConstants;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.springframework.ui.ModelMap;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -55,7 +49,8 @@ public class DWRMigrationService {
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
 		doPostDemographics();
 
-		processOtherDatasets(migrationDatabase);
+		//processOtherDatasets(migrationDatabase);
+		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
 
 		long endTime = System.nanoTime();
 		long timeTaken = endTime - startTime;
