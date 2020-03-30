@@ -1504,6 +1504,12 @@ public class DbImportUtil {
         return false;
     }
 
+    /**
+     * Process system users
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
     public static String processUsers(List<String> messages, String migrationDatabase) {
 
         try {
@@ -1659,6 +1665,106 @@ public class DbImportUtil {
         }
         return null;
     }
+
+    /**
+     * Process patient relationships
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
+    public static String processPatientRelationships(List<String> messages, String migrationDatabase) {
+
+        try {
+
+            Connection conn = null;
+            Statement s = null;
+
+            try {
+
+                // Connect to db
+                Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+                Properties p = Context.getRuntimeProperties();
+                String url = p.getProperty("connection.url");
+
+                conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                        p.getProperty("connection.password"));
+                conn.setAutoCommit(false);
+
+                s = conn.createStatement();
+
+                String query = "select * from :migrationDatabase.:relationshipDataset";
+                query = query.replace(":migrationDatabase", migrationDatabase);
+                query = query.replace(":relationshipDataset", "st_relationship");
+
+                ResultSet rs = s.executeQuery(query);
+                int recordCount = 0;
+
+                String addRelationshipQuery = "insert into relationship (date_created, uuid, creator, person_a, " +
+                        "relationship, person_b) " +
+                        "values (now(), uuid(), ?, ?, ?, ?);";
+
+                PreparedStatement addRelationshipDetails = conn.prepareStatement(addRelationshipQuery, Statement.RETURN_GENERATED_KEYS);
+
+                while (rs.next()) {
+                    Integer personA = ((Long) rs.getLong("Person_a_person_id")).intValue();
+                    Integer personB = ((Long) rs.getLong("person_b_person_id")).intValue();
+                    Integer relationshipType = ((Long) rs.getLong("openmrs_relationship_type")).intValue();
+
+
+                    if (personA != null && personB != null && relationshipType != null) {
+                        addRelationshipDetails.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                        addRelationshipDetails.setInt(2, personA);
+                        addRelationshipDetails.setInt(3, relationshipType);
+                        addRelationshipDetails.setInt(4, personB);
+
+                        addRelationshipDetails.executeUpdate();
+                        ResultSet rsNewRelationship = addRelationshipDetails.getGeneratedKeys();
+                        rsNewRelationship.next();
+                        rsNewRelationship.close();
+
+                    }
+                    recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "processedCount", String.valueOf(recordCount));
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                if (s != null) {
+                    try {
+                        s.close();
+                    } catch (Exception e) {
+                    }
+                }
+                if (conn != null) {
+                    try {
+                        conn.commit();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        conn.close();
+                    } catch (Exception e) {
+                    }
+                }
+            }
+
+            messages.add("Processing relationships was successful.");
+            return "Success";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 
 
     public static void setRowCountForDatasets(String migrationDatabase) {
