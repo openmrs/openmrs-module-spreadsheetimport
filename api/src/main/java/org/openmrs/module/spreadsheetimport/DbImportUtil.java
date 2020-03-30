@@ -22,6 +22,13 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.openmrs.Person;
+import org.openmrs.PersonName;
+import org.openmrs.Provider;
+import org.openmrs.Role;
+import org.openmrs.User;
+import org.openmrs.api.ProviderService;
+import org.openmrs.api.UserService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
@@ -40,6 +47,7 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -1496,6 +1504,162 @@ public class DbImportUtil {
         return false;
     }
 
+    public static String processUsers(List<String> messages, String migrationDatabase) {
+
+        try {
+
+            Connection conn = null;
+            Statement s = null;
+
+            try {
+
+                // Connect to db
+                Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+                Properties p = Context.getRuntimeProperties();
+                String url = p.getProperty("connection.url");
+
+                conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                        p.getProperty("connection.password"));
+                conn.setAutoCommit(false);
+
+                s = conn.createStatement();
+
+                String query = "select * from :migrationDatabase.:userDataset";
+                query = query.replace(":migrationDatabase", migrationDatabase);
+                query = query.replace(":userDataset", "tr_users");
+
+                ResultSet rs = s.executeQuery(query);
+                int recordCount = 0;
+
+                String updateGeneratedUserIdSql = "update :migrationDatabase.:userDataset set OpenMRS_User_Id=? where User_Id=?";
+                updateGeneratedUserIdSql = updateGeneratedUserIdSql.replace(":migrationDatabase", migrationDatabase);
+                updateGeneratedUserIdSql = updateGeneratedUserIdSql.replace(":userDataset", "tr_users");
+
+                PreparedStatement updateUserDetails = conn.prepareStatement(updateGeneratedUserIdSql, Statement.RETURN_GENERATED_KEYS);
+                UserService us = Context.getUserService();
+                ProviderService ps = Context.getProviderService();
+
+                String clinicianDesignation = "Physician/Clinical Officer";
+                String clinicianGroupName = "Clinical Staff";
+                String dataManagerDesignation = "Data Manager";
+                String dataManagerGroupName = "Data Managers";
+                String triageGroupName = "Triage";
+
+                while (rs.next()) {
+                    Integer userId = ((Long) rs.getLong("User_Id")).intValue();
+                    String firstName = rs.getString("First_Name");
+                    String lastName = rs.getString("Last_Name");
+                    String userName = rs.getString("User_Name");
+                    String status = rs.getString("Status");
+                    String designation = rs.getString("Designation");
+                    String groupNames = rs.getString("GroupNames");
+
+                    if (StringUtils.isNotBlank(firstName) && StringUtils.isNotBlank(lastName) && StringUtils.isNotBlank(userName)) {
+                        String generatedPassword = userName + "12Dd001";
+                        User u = new User();
+                        u.setPerson(new Person());
+
+                        u.addName(new PersonName(firstName, null, lastName));
+                        userName = userName.replace(" ", "");
+                        u.setUsername(userName);
+                        u.getPerson().setGender("U");
+                        Calendar c = Calendar.getInstance();
+                        c.set(1970, 3, 3);
+                        u.getPerson().setBirthdate(c.getTime());
+                        u.getPerson().setBirthdateEstimated(true);
+                        if (StringUtils.isNotBlank(status) && status.equals("InActive")) {
+                            u.setRetired(true);
+                            u.setRetireReason("Marked as inactive during migration");
+                        }
+
+                        if ((StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
+                                        (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName))
+
+                                ) {
+                            Role role = us.getRole("Clinician");
+                            u.addRole(role);
+                        } else if ((StringUtils.isNotBlank(designation) && designation.trim().contains(dataManagerDesignation)) ||
+                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(dataManagerGroupName))
+
+                                ) {
+                            Role role = us.getRole("Data Manager");
+                            u.addRole(role);
+                        } else if (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName)) {
+                            Role rRole = us.getRole("Registration");
+                            Role iRole = us.getRole("Intake");
+                            Role dRole = us.getRole("Data Clerk");
+                            u.addRole(rRole);
+                            u.addRole(iRole);
+                            u.addRole(dRole);
+                        }
+
+                        User createdUser = us.saveUser(u, generatedPassword);
+
+                        // update user details
+                        Integer generatedUserId = createdUser.getUserId();
+
+                        updateUserDetails.setInt(1, generatedUserId);
+                        updateUserDetails.setInt(2, userId);
+
+                        updateUserDetails.executeUpdate();
+                        ResultSet rsUpdatedUser = updateUserDetails.getGeneratedKeys();
+                        rsUpdatedUser.next();
+                        rsUpdatedUser.close();
+                        if (
+                                (StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
+                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName)) ||
+                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName))
+
+                                ) {
+                            Provider provider = new Provider();
+                            provider.setIdentifier(createdUser.getSystemId());
+                            provider.setPerson(createdUser.getPerson());
+                            ps.saveProvider(provider);
+
+                        }
+                    }
+                    recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty("Users", "processedCount", String.valueOf(recordCount));
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                if (s != null) {
+                    try {
+                        s.close();
+                    } catch (Exception e) {
+                    }
+                }
+                if (conn != null) {
+                    try {
+                        conn.commit();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        conn.close();
+                    } catch (Exception e) {
+                    }
+                }
+            }
+
+            messages.add("Processing users was successful.");
+            return "Success";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 
     public static void setRowCountForDatasets(String migrationDatabase) {
 
@@ -1504,6 +1668,7 @@ public class DbImportUtil {
         Statement s = null;
         Map<String, Properties> datasetRowCountMap = new LinkedHashMap<String, Properties>();
         String demographicsTableName = "tr_demographics";
+        String usersTableName = "tr_users";
 
         try {
             Map<String, Integer> templateMap = getTemplateDatasetMap();
@@ -1519,6 +1684,17 @@ public class DbImportUtil {
             conn = dataSource.getConnection();
             s = conn.createStatement();
             SpreadsheetImportService spreadsheetImportService = Context.getService(SpreadsheetImportService.class);
+
+            // process for users
+
+            String usersQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            usersQuery = usersQuery.replace(":migrationDatabase", migrationDatabase);
+            usersQuery = usersQuery.replace(":tableName", usersTableName);
+            ResultSet rsUsers = s.executeQuery(usersQuery);
+            rsUsers.next();
+            DbImportUtil.updateMigrationProgressMapProperty("Users", "totalRowCount", String.valueOf(rsUsers.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("Users", "processedCount", String.valueOf(0));
+            rsUsers.close();
 
             // process for demographics
 
