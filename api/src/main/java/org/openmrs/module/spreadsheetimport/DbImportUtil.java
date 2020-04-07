@@ -405,7 +405,7 @@ public class DbImportUtil {
                         } else {
                             value = rs.getString(column.getName());
                             if (value != null && !value.equals("")) {
-                                value = "'" + rs.getString(column.getName()) + "'";
+                                value = "'" + rs.getString(column.getName()).replace("'","") + "'";
                             }
                         }
                         // check for empty cell (new Encounter)
@@ -1169,7 +1169,7 @@ public class DbImportUtil {
                     returnedPerson.close();
 
                     recordCount++;
-                    DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
+                    DbImportUtil.updateMigrationProgressMapProperty("Labs", "processedCount", String.valueOf(recordCount));
 
                 }
 
@@ -1214,31 +1214,8 @@ public class DbImportUtil {
     }
 
     public static String processViralLoadAndCD4Labs(List<String> messages, String migrationDatabase) {
-        /*String GP_LAB_DATASET_CONFIG_FILE = "lab_dataset_config_file.json";
-        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
-        String fullFilePath = configFile.getPath() + File.separator + GP_LAB_DATASET_CONFIG_FILE;
-        JSONParser jsonParser = new JSONParser();*/
+
         try {
-            //Read JSON file
-            /*FileReader reader = new FileReader(fullFilePath);
-            Object obj = jsonParser.parse(reader);
-
-            JSONObject templateObject = (JSONObject) obj;
-            String datasetName = (String) templateObject.get("datasetName");
-            JSONArray templateDatasetMap = (JSONArray) templateObject.get("columns");
-            Map<String, JSONObject> configMap = new LinkedHashMap<String, JSONObject>();
-
-            for (int i = 0; i < templateDatasetMap.size(); i++) {
-                JSONObject o = (JSONObject) templateDatasetMap.get(i);
-                //every object has testName, conceptQuestion, and dataType properties.
-                String testName = (String) o.get("testName");
-                Long conceptQuestion = (Long) o.get("conceptQuestion");
-                String dataType = (String) o.get("dataType");
-                JSONObject col = new JSONObject();
-                col.put("conceptQuestion", conceptQuestion);
-                col.put("dataType", dataType);
-                configMap.put(testName, col);
-            }*/
 
             Connection conn = null;
             Statement s = null;
@@ -1766,7 +1743,10 @@ public class DbImportUtil {
     }
 
 
-
+    /**
+     * Sets row count for datasets
+     * @param migrationDatabase
+     */
     public static void setRowCountForDatasets(String migrationDatabase) {
 
         MysqlDataSource dataSource = null;
