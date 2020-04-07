@@ -1674,7 +1674,7 @@ public class DbImportUtil {
 
                 String query = "select * from :migrationDatabase.:relationshipDataset";
                 query = query.replace(":migrationDatabase", migrationDatabase);
-                query = query.replace(":relationshipDataset", "st_relationship");
+                query = query.replace(":relationshipDataset", "tr_person_relationship");
 
                 ResultSet rs = s.executeQuery(query);
                 int recordCount = 0;
@@ -1684,17 +1684,36 @@ public class DbImportUtil {
                         "values (now(), uuid(), ?, ?, ?, ?);";
 
                 PreparedStatement addRelationshipDetails = conn.prepareStatement(addRelationshipQuery, Statement.RETURN_GENERATED_KEYS);
+                RelationshipDetails.setRelationshipDetails();
+                RelationshipDetails relMetadata = RelationshipDetails.relationshipDetails;
 
                 while (rs.next()) {
                     Integer personA = ((Long) rs.getLong("Person_a_person_id")).intValue();
                     Integer personB = ((Long) rs.getLong("person_b_person_id")).intValue();
-                    Integer relationshipType = ((Long) rs.getLong("openmrs_relationship_type")).intValue();
+                    Integer relationshipType = ((Long) rs.getLong("Relationship")).intValue();
+                    Integer openmrsRelationshipType = null;
+
+                    if (relationshipType != null) {
+                        if (relationshipType.equals(1527) || relationshipType.equals(971) || relationshipType.equals(970)) {
+                            openmrsRelationshipType = relMetadata.getParentChildRelationshipTypeId();
+                        } else if (relationshipType.equals(972)) {
+                            openmrsRelationshipType = relMetadata.getSiblingRelationshipTypeId();
+                        } else if (relationshipType.equals(163565)) {
+                            openmrsRelationshipType = relMetadata.getSexualRelationshipTypeId();
+                        } else if (relationshipType.equals(5617)) {
+                            openmrsRelationshipType = relMetadata.getSpouseRelationshipTypeId();
+                        } else if (relationshipType.equals(1528)) {
+                            openmrsRelationshipType = relMetadata.getParentChildRelationshipTypeId();
+                            personB = personA;
+                            personA = personB;
+                        }
+                    }
 
 
-                    if (personA != null && personB != null && relationshipType != null) {
+                    if (personA != null && personB != null && openmrsRelationshipType != null) {
                         addRelationshipDetails.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
                         addRelationshipDetails.setInt(2, personA);
-                        addRelationshipDetails.setInt(3, relationshipType);
+                        addRelationshipDetails.setInt(3, openmrsRelationshipType);
                         addRelationshipDetails.setInt(4, personB);
 
                         addRelationshipDetails.executeUpdate();
@@ -1734,8 +1753,6 @@ public class DbImportUtil {
                     }
                 }
             }
-
-            messages.add("Processing relationships was successful.");
             return "Success";
 
         } catch (Exception e) {
@@ -1757,6 +1774,7 @@ public class DbImportUtil {
         Map<String, Properties> datasetRowCountMap = new LinkedHashMap<String, Properties>();
         String demographicsTableName = "tr_demographics";
         String usersTableName = "tr_users";
+        String relationshipTableName = "tr_person_relationship";
 
         try {
             Map<String, Integer> templateMap = getTemplateDatasetMap();
@@ -1798,7 +1816,6 @@ public class DbImportUtil {
             // add other datasets
             for (Map.Entry<String, Integer> entry : templateMap.entrySet()) {
 
-
                 String countQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
                 countQuery = countQuery.replace(":migrationDatabase", migrationDatabase);
                 countQuery = countQuery.replace(":tableName", entry.getKey());
@@ -1818,6 +1835,19 @@ public class DbImportUtil {
             DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "totalRowCount", String.valueOf(rsLabs.getInt("rowCount")));
             DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "processedCount", String.valueOf(0));
             rs.close();
+
+
+            String relationshipQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            relationshipQuery = relationshipQuery.replace(":migrationDatabase", migrationDatabase);
+            relationshipQuery = relationshipQuery.replace(":tableName", relationshipTableName);
+
+            ResultSet rsRelationship = s.executeQuery(relationshipQuery);
+            rsRelationship.next();
+            DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "totalRowCount", String.valueOf(rsRelationship.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "processedCount", String.valueOf(0));
+            rs.close();
+
+
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
