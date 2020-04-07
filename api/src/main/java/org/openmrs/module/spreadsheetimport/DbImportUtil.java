@@ -405,7 +405,7 @@ public class DbImportUtil {
                         } else {
                             value = rs.getString(column.getName());
                             if (value != null && !value.equals("")) {
-                                value = "'" + rs.getString(column.getName()) + "'";
+                                value = "'" + rs.getString(column.getName()).replace("'","") + "'";
                             }
                         }
                         // check for empty cell (new Encounter)
@@ -484,13 +484,15 @@ public class DbImportUtil {
                     }
                 }
 
+                // just count even if patientId is null
+                recordCount++;
+                DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
+
                 if (rowHasData && StringUtils.isNotBlank(patientId)) {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
                         String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
-                        recordCount++;
-                        DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
 
 
                     /*if (recordCount == 1) {
@@ -1169,7 +1171,7 @@ public class DbImportUtil {
                     returnedPerson.close();
 
                     recordCount++;
-                    DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
+                    DbImportUtil.updateMigrationProgressMapProperty("Labs", "processedCount", String.valueOf(recordCount));
 
                 }
 
@@ -1214,31 +1216,8 @@ public class DbImportUtil {
     }
 
     public static String processViralLoadAndCD4Labs(List<String> messages, String migrationDatabase) {
-        /*String GP_LAB_DATASET_CONFIG_FILE = "lab_dataset_config_file.json";
-        File configFile = OpenmrsUtil.getDirectoryInApplicationDataDirectory(Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_CONFIG_DIR));
-        String fullFilePath = configFile.getPath() + File.separator + GP_LAB_DATASET_CONFIG_FILE;
-        JSONParser jsonParser = new JSONParser();*/
+
         try {
-            //Read JSON file
-            /*FileReader reader = new FileReader(fullFilePath);
-            Object obj = jsonParser.parse(reader);
-
-            JSONObject templateObject = (JSONObject) obj;
-            String datasetName = (String) templateObject.get("datasetName");
-            JSONArray templateDatasetMap = (JSONArray) templateObject.get("columns");
-            Map<String, JSONObject> configMap = new LinkedHashMap<String, JSONObject>();
-
-            for (int i = 0; i < templateDatasetMap.size(); i++) {
-                JSONObject o = (JSONObject) templateDatasetMap.get(i);
-                //every object has testName, conceptQuestion, and dataType properties.
-                String testName = (String) o.get("testName");
-                Long conceptQuestion = (Long) o.get("conceptQuestion");
-                String dataType = (String) o.get("dataType");
-                JSONObject col = new JSONObject();
-                col.put("conceptQuestion", conceptQuestion);
-                col.put("dataType", dataType);
-                configMap.put(testName, col);
-            }*/
 
             Connection conn = null;
             Statement s = null;
@@ -1320,7 +1299,7 @@ public class DbImportUtil {
                     Integer order = null;
 
                     if (StringUtils.isNotBlank(testResult)) { // handle lab result. create encounter, order, lab test, and obs for the result
-                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null) {
+                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null && labTest != null) {
 
                             getEncounterOnDay.setInt(1, labMetadata.getEncounterTypeId());
                             getEncounterOnDay.setDate(2, new java.sql.Date(encounterDate.getTime()));
@@ -1389,7 +1368,8 @@ public class DbImportUtil {
                                 insertOrder.setString(9, "DISCONTINUE"); // set order action
                                 insertOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
                                 insertOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
-                                insertOrder.setInt(12, patientId);
+                                insertOrder.setString(12, orderNumber);
+                                insertOrder.setInt(13, patientId);
                                 insertOrder.executeUpdate();
                                 ResultSet rsNewOrder = insertOrder.getGeneratedKeys();
                                 rsNewOrder.next();
@@ -1504,6 +1484,12 @@ public class DbImportUtil {
         return false;
     }
 
+    /**
+     * Process system users
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
     public static String processUsers(List<String> messages, String migrationDatabase) {
 
         try {
@@ -1651,7 +1637,105 @@ public class DbImportUtil {
                 }
             }
 
-            messages.add("Processing users was successful.");
+            return "Success";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Process patient relationships
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
+    public static String processPatientRelationships(List<String> messages, String migrationDatabase) {
+
+        try {
+
+            Connection conn = null;
+            Statement s = null;
+
+            try {
+
+                // Connect to db
+                Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+                Properties p = Context.getRuntimeProperties();
+                String url = p.getProperty("connection.url");
+
+                conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                        p.getProperty("connection.password"));
+                conn.setAutoCommit(false);
+
+                s = conn.createStatement();
+
+                String query = "select * from :migrationDatabase.:relationshipDataset";
+                query = query.replace(":migrationDatabase", migrationDatabase);
+                query = query.replace(":relationshipDataset", "st_relationship");
+
+                ResultSet rs = s.executeQuery(query);
+                int recordCount = 0;
+
+                String addRelationshipQuery = "insert into relationship (date_created, uuid, creator, person_a, " +
+                        "relationship, person_b) " +
+                        "values (now(), uuid(), ?, ?, ?, ?);";
+
+                PreparedStatement addRelationshipDetails = conn.prepareStatement(addRelationshipQuery, Statement.RETURN_GENERATED_KEYS);
+
+                while (rs.next()) {
+                    Integer personA = ((Long) rs.getLong("Person_a_person_id")).intValue();
+                    Integer personB = ((Long) rs.getLong("person_b_person_id")).intValue();
+                    Integer relationshipType = ((Long) rs.getLong("openmrs_relationship_type")).intValue();
+
+
+                    if (personA != null && personB != null && relationshipType != null) {
+                        addRelationshipDetails.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                        addRelationshipDetails.setInt(2, personA);
+                        addRelationshipDetails.setInt(3, relationshipType);
+                        addRelationshipDetails.setInt(4, personB);
+
+                        addRelationshipDetails.executeUpdate();
+                        ResultSet rsNewRelationship = addRelationshipDetails.getGeneratedKeys();
+                        rsNewRelationship.next();
+                        rsNewRelationship.close();
+
+                    }
+                    recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "processedCount", String.valueOf(recordCount));
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                if (s != null) {
+                    try {
+                        s.close();
+                    } catch (Exception e) {
+                    }
+                }
+                if (conn != null) {
+                    try {
+                        conn.commit();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        conn.close();
+                    } catch (Exception e) {
+                    }
+                }
+            }
+
+            messages.add("Processing relationships was successful.");
             return "Success";
 
         } catch (Exception e) {
@@ -1661,6 +1745,10 @@ public class DbImportUtil {
     }
 
 
+    /**
+     * Sets row count for datasets
+     * @param migrationDatabase
+     */
     public static void setRowCountForDatasets(String migrationDatabase) {
 
         MysqlDataSource dataSource = null;
