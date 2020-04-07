@@ -484,13 +484,15 @@ public class DbImportUtil {
                     }
                 }
 
+                // just count even if patientId is null
+                recordCount++;
+                DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
+
                 if (rowHasData && StringUtils.isNotBlank(patientId)) {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
                         String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
-                        recordCount++;
-                        DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
 
 
                     /*if (recordCount == 1) {
@@ -1297,7 +1299,7 @@ public class DbImportUtil {
                     Integer order = null;
 
                     if (StringUtils.isNotBlank(testResult)) { // handle lab result. create encounter, order, lab test, and obs for the result
-                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null) {
+                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null && labTest != null) {
 
                             getEncounterOnDay.setInt(1, labMetadata.getEncounterTypeId());
                             getEncounterOnDay.setDate(2, new java.sql.Date(encounterDate.getTime()));
@@ -1366,7 +1368,8 @@ public class DbImportUtil {
                                 insertOrder.setString(9, "DISCONTINUE"); // set order action
                                 insertOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
                                 insertOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
-                                insertOrder.setInt(12, patientId);
+                                insertOrder.setString(12, orderNumber);
+                                insertOrder.setInt(13, patientId);
                                 insertOrder.executeUpdate();
                                 ResultSet rsNewOrder = insertOrder.getGeneratedKeys();
                                 rsNewOrder.next();
@@ -1634,7 +1637,6 @@ public class DbImportUtil {
                 }
             }
 
-            messages.add("Processing users was successful.");
             return "Success";
 
         } catch (Exception e) {
