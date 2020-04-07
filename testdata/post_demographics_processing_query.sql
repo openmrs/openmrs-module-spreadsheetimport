@@ -62,7 +62,7 @@ alter table migration_tr.tr_hei_outcome add index (Person_Id);
 alter table migration_tr.tr_hei_enrollment add index (Person_Id);
 alter table migration_tr.tr_hei_followup add index (Person_Id);
 alter table migration_tr.tr_person_relationship add index(Index_Person_Id);
-
+alter table migration_tr.tr_person_relationship add index(Relative_Person_Id);
 
 update migration_tr.tr_hiv_enrollment a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
@@ -87,7 +87,7 @@ inner join (select patient_identifier_type_id from openmrs.patient_identifier_ty
 update migration_tr.tr_ipt_program a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_ipt_outcome a 
+update migration_tr.tr_ipt_outcome a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
@@ -115,57 +115,64 @@ inner join (select patient_identifier_type_id from openmrs.patient_identifier_ty
 update migration_tr.tr_otz_activity a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_otz_outcome a 
+update migration_tr.tr_otz_outcome a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
 update migration_tr.tr_ovc_enrolment a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_ovc_outcome a 
+update migration_tr.tr_ovc_outcome a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_otz_enrolment a 
+update migration_tr.tr_otz_enrolment a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_hts_linkage a 
+update migration_tr.tr_hts_linkage a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_mch_discharge a 
+update migration_tr.tr_mch_discharge a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_mch_delivery a 
+update migration_tr.tr_mch_delivery a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_mch_anc_visit a 
-inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
-inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
-
-
-update migration_tr.tr_mch_pnc_visit a 
-inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
-inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
-
-update migration_tr.tr_hei_outcome a 
-inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
-inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
-
-update migration_tr.tr_hei_enrollment a 
+update migration_tr.tr_mch_anc_visit a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
 
-update migration_tr.tr_hei_followup a 
+update migration_tr.tr_mch_pnc_visit a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
-update migration_tr.tr_vital_labs a 
+update migration_tr.tr_hei_outcome a
 inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
 
+update migration_tr.tr_hei_enrollment a
+inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
+inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
+
+
+update migration_tr.tr_hei_followup a
+inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
+inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
+
+update migration_tr.tr_vital_labs a
+inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
+inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
+
+update migration_tr.tr_person_relationship a
+inner join openmrs.patient_identifier b on a.Index_Person_Id = b.identifier
+inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.Person_a_person_id = b.patient_id;
+
+update migration_tr.tr_person_relationship a
+inner join openmrs.patient_identifier b on a.Relative_Person_Id = b.identifier
+inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.person_b_person_id = b.patient_id;
 
