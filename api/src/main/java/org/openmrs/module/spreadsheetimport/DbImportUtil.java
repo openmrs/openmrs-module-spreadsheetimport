@@ -1761,6 +1761,123 @@ public class DbImportUtil {
         return null;
     }
 
+    /**
+     * Migrates listed contacts under patients during family and partner testing
+     * @param messages
+     * @param migrationDatabase
+     * @return
+     */
+    public static String processPatientContactLists(List<String> messages, String migrationDatabase) {
+
+        try {
+
+            Connection conn = null;
+            Statement s = null;
+
+            try {
+
+                // Connect to db
+                Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+                Properties p = Context.getRuntimeProperties();
+                String url = p.getProperty("connection.url");
+
+                conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                        p.getProperty("connection.password"));
+                conn.setAutoCommit(false);
+
+                s = conn.createStatement();
+
+                String query = "select * from :migrationDatabase.:contactDataset";
+                query = query.replace(":migrationDatabase", migrationDatabase);
+                query = query.replace(":contactDataset", "tr_hts_contact_listing");
+
+                ResultSet rs = s.executeQuery(query);
+                int recordCount = 0;
+
+                String insertContactQuery = "insert into kenyaemr_hiv_testing_patient_contact (date_created, uuid, first_name, middle_name, " +
+                        "last_name, sex, birth_date, physical_address, phone_contact, marital_status, patient_related_to, patient_id, living_with_patient," +
+                        ", pns_approach, appointment_date, baseline_hiv_status, ipv_outcome, consented_contact_listing) " +
+                        "values (now(), uuid(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+
+                PreparedStatement psInsertContact = conn.prepareStatement(insertContactQuery, Statement.RETURN_GENERATED_KEYS);
+
+                while (rs.next()) {
+                    Integer indexClient = ((Long) rs.getLong("Person_Id")).intValue();
+                    Integer contact = ((Long) rs.getLong("Contact_Person_Id")).intValue();
+                    Integer relationshipType = ((Long) rs.getLong("Relationship_To_Index")).intValue();
+                    String firstName = rs.getString("First_Name");
+                    String lastName = rs.getString("Last_Name");
+                    String middleName = rs.getString("Middle_Name");
+                    String sex = rs.getString("Sex");
+                    Date dob = rs.getDate("DoB");
+                    String maritalStatus = rs.getString("Marital_Status");
+                    String physicalAddress = rs.getString("Physical_Address");
+                    String phoneNumber = rs.getString("Phone_Number");
+                    Integer livingWithPatient = ((Long) rs.getLong("Currently_Living_With_Index")).intValue();
+                    Integer ipvOutcome = ((Long) rs.getLong("IPV_Outcome")).intValue();
+                    Integer hivStatus = ((Long) rs.getLong("HIV_Status")).intValue();
+                    Integer pnsApproach = ((Long) rs.getLong("PNS_Approach")).intValue();
+                    Integer consent = ((Long) rs.getLong("Consent")).intValue();
+                    Date bookingDate = rs.getDate("Booking_Date");
+
+                    Integer openmrsRelationshipType = null;
+
+                    psInsertContact.setString(1, firstName);
+                    psInsertContact.setString(2, middleName);
+                    psInsertContact.setString(3, lastName);
+                    psInsertContact.setString(4, sex);
+                    psInsertContact.setTimestamp(5, new java.sql.Timestamp(dob.getTime()));
+                    psInsertContact.setString(6, physicalAddress);
+                    psInsertContact.setString(7, phoneNumber);
+                    psInsertContact.setString(8, maritalStatus);
+                    psInsertContact.setInt(9, indexClient);  // patient related to
+                    psInsertContact.setInt(10, contact); // patient_id
+                    psInsertContact.setInt(11, livingWithPatient);
+                    psInsertContact.setInt(12, pnsApproach);
+                    psInsertContact.setDate(13, new java.sql.Date(bookingDate.getTime()));
+                    psInsertContact.setInt(14, hivStatus);
+                    psInsertContact.setInt(15, ipvOutcome);
+                    psInsertContact.setInt(16, consent);
+
+                    recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(recordCount));
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                if (s != null) {
+                    try {
+                        s.close();
+                    } catch (Exception e) {
+                    }
+                }
+                if (conn != null) {
+                    try {
+                        conn.commit();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        conn.close();
+                    } catch (Exception e) {
+                    }
+                }
+            }
+            return "Success";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     /**
      * Sets row count for datasets
