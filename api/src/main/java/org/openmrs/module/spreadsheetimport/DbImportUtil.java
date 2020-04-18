@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -552,6 +553,8 @@ public class DbImportUtil {
      */
     public static String processDemographicsDataset(List<String> messages, String migrationDatabase) {
 
+        System.out.println("Processing demographics dataset ..............");
+        log.info("Processing demographics dataset ..............");
         //TODO: provide this mapping in a json document that can be modified outside of code
         /**
          * compose mapping template for the demographics metadata
@@ -1797,14 +1800,16 @@ public class DbImportUtil {
 
                 String insertContactQuery = "insert into kenyaemr_hiv_testing_patient_contact (date_created, uuid, first_name, middle_name, " +
                         "last_name, sex, birth_date, physical_address, phone_contact, marital_status, patient_related_to, patient_id, living_with_patient," +
-                        ", pns_approach, appointment_date, baseline_hiv_status, ipv_outcome, consented_contact_listing) " +
-                        "values (now(), uuid(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                        "pns_approach, appointment_date, baseline_hiv_status, ipv_outcome, consented_contact_listing, relationship_type) " +
+                        "values (now(), uuid(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
                 PreparedStatement psInsertContact = conn.prepareStatement(insertContactQuery, Statement.RETURN_GENERATED_KEYS);
 
                 while (rs.next()) {
                     Integer indexClient = ((Long) rs.getLong("Person_Id")).intValue();
+                    Integer indexClientPatient = ((Long) rs.getLong("patient_related_to")).intValue();
                     Integer contact = ((Long) rs.getLong("Contact_Person_Id")).intValue();
+                    Integer contactPatient = ((Long) rs.getLong("patient_id")).intValue();
                     Integer relationshipType = ((Long) rs.getLong("Relationship_To_Index")).intValue();
                     String firstName = rs.getString("First_Name");
                     String lastName = rs.getString("Last_Name");
@@ -1821,25 +1826,30 @@ public class DbImportUtil {
                     Integer consent = ((Long) rs.getLong("Consent")).intValue();
                     Date bookingDate = rs.getDate("Booking_Date");
 
-                    Integer openmrsRelationshipType = null;
+                    if (relationshipType != null && indexClientPatient != null && (firstName !=null || middleName != null || lastName != null)) {
+                        psInsertContact.setString(1, firstName);
+                        psInsertContact.setString(2, middleName);
+                        psInsertContact.setString(3, lastName);
+                        psInsertContact.setString(4, sex != null ? sex : "U");
+                        psInsertContact.setTimestamp(5, dob != null ? new java.sql.Timestamp(dob.getTime()) : null);
+                        psInsertContact.setString(6, physicalAddress);
+                        psInsertContact.setString(7, phoneNumber);
+                        psInsertContact.setString(8, maritalStatus);
+                        psInsertContact.setInt(9, indexClientPatient);  // patient related to
+                        psInsertContact.setInt(10, contactPatient); // patient_id
+                        psInsertContact.setInt(11, livingWithPatient);
+                        psInsertContact.setInt(12, pnsApproach);
+                        psInsertContact.setDate(13, bookingDate != null ? new java.sql.Date(bookingDate.getTime()) : null);
+                        psInsertContact.setInt(14, hivStatus);
+                        psInsertContact.setInt(15, ipvOutcome);
+                        psInsertContact.setInt(16, consent);
+                        psInsertContact.setInt(17, relationshipType);
 
-                    psInsertContact.setString(1, firstName);
-                    psInsertContact.setString(2, middleName);
-                    psInsertContact.setString(3, lastName);
-                    psInsertContact.setString(4, sex);
-                    psInsertContact.setTimestamp(5, new java.sql.Timestamp(dob.getTime()));
-                    psInsertContact.setString(6, physicalAddress);
-                    psInsertContact.setString(7, phoneNumber);
-                    psInsertContact.setString(8, maritalStatus);
-                    psInsertContact.setInt(9, indexClient);  // patient related to
-                    psInsertContact.setInt(10, contact); // patient_id
-                    psInsertContact.setInt(11, livingWithPatient);
-                    psInsertContact.setInt(12, pnsApproach);
-                    psInsertContact.setDate(13, new java.sql.Date(bookingDate.getTime()));
-                    psInsertContact.setInt(14, hivStatus);
-                    psInsertContact.setInt(15, ipvOutcome);
-                    psInsertContact.setInt(16, consent);
-
+                        psInsertContact.executeUpdate();
+                        ResultSet rsInsertContact = psInsertContact.getGeneratedKeys();
+                        rsInsertContact.next();
+                        rsInsertContact.close();
+                    }
                     recordCount++;
                     DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(recordCount));
                 }
@@ -1892,6 +1902,7 @@ public class DbImportUtil {
         String demographicsTableName = "tr_demographics";
         String usersTableName = "tr_users";
         String relationshipTableName = "tr_person_relationship";
+        String htsContactsTableName = "tr_hts_contact_listing";
 
         try {
             Map<String, Integer> templateMap = getTemplateDatasetMap();
@@ -1951,7 +1962,7 @@ public class DbImportUtil {
             rsLabs.next();
             DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "totalRowCount", String.valueOf(rsLabs.getInt("rowCount")));
             DbImportUtil.updateMigrationProgressMapProperty("Lab (VL and CD4)", "processedCount", String.valueOf(0));
-            rs.close();
+            rsLabs.close();
 
 
             String relationshipQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
@@ -1962,8 +1973,17 @@ public class DbImportUtil {
             rsRelationship.next();
             DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "totalRowCount", String.valueOf(rsRelationship.getInt("rowCount")));
             DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "processedCount", String.valueOf(0));
-            rs.close();
+            rsRelationship.close();
 
+            String contactsQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            contactsQuery = contactsQuery.replace(":migrationDatabase", migrationDatabase);
+            contactsQuery = contactsQuery.replace(":tableName", htsContactsTableName);
+
+            ResultSet rsHtsContacts = s.executeQuery(contactsQuery);
+            rsHtsContacts.next();
+            DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "totalRowCount", String.valueOf(rsHtsContacts.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(0));
+            rsHtsContacts.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
