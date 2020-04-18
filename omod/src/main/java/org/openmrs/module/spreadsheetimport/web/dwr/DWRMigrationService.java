@@ -53,6 +53,7 @@ public class DWRMigrationService {
 		processOtherDatasets(migrationDatabase);
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
 		DbImportUtil.processPatientRelationships(messages, migrationDatabase);
+		DbImportUtil.processPatientContactLists(messages, migrationDatabase);
 
 		long endTime = System.nanoTime();
 		long timeTaken = endTime - startTime;

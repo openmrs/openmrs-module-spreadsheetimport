@@ -29,9 +29,10 @@ alter table migration_tr.tr_mch_pnc_visit add column patient_id int(100) default
 alter table migration_tr.tr_hei_outcome add column patient_id int(100) default null;
 alter table migration_tr.tr_hei_enrollment add column patient_id int(100) default null;
 alter table migration_tr.tr_hei_followup add column patient_id int(100) default null;
+alter table migration_tr.tr_vital_labs add column patient_id int(100) default null;
 alter table migration_tr.tr_person_relationship add column Person_a_person_id INT(11) default null, add column person_b_person_id INT(11) default null, add column openmrs_relationship_type INT(11) default null;
-
---Add index
+alter table migration_tr.tr_hts_contact_listing add column patient_id int(11) default null, add column patient_related_to int(11) default null;
+-- Add index
 alter table migration_tr.tr_hiv_enrollment add index (Person_Id);
 alter table migration_tr.tr_hiv_program_enrollment add index (Person_Id);
 alter table migration_tr.tr_hiv_program_discontinuation add index (Person_Id);
@@ -63,6 +64,10 @@ alter table migration_tr.tr_hei_enrollment add index (Person_Id);
 alter table migration_tr.tr_hei_followup add index (Person_Id);
 alter table migration_tr.tr_person_relationship add index(Index_Person_Id);
 alter table migration_tr.tr_person_relationship add index(Relative_Person_Id);
+alter table migration_tr.tr_vital_labs add index (Person_Id);
+alter table migration_tr.tr_hts_contact_listing add index(Person_Id);
+alter table migration_tr.tr_hts_contact_listing add index(Contact_Person_Id);
+
 
 update migration_tr.tr_hiv_enrollment a inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
@@ -176,3 +181,10 @@ update migration_tr.tr_person_relationship a
 inner join openmrs.patient_identifier b on a.Relative_Person_Id = b.identifier
 inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.person_b_person_id = b.patient_id;
 
+update migration_tr.tr_hts_contact_listing a
+ inner join openmrs.patient_identifier b on a.Person_Id = b.identifier
+ inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_related_to = b.patient_id;
+
+update migration_tr.tr_hts_contact_listing a
+ inner join openmrs.patient_identifier b on a.Contact_Person_Id = b.identifier
+ inner join (select patient_identifier_type_id from openmrs.patient_identifier_type where uuid="b3d6de9f-f215-4259-9805-8638c887e46b") pt on pt.patient_identifier_type_id = b.identifier_type set a.patient_id = b.patient_id;
