@@ -454,9 +454,12 @@ public class DbImportUtil {
                             String k = e.getKey();
                             DatasetColumn v = e.getValue();
 
+
                             Object value = null;
 
-                            if (GenericValidator.isInt(rs.getString(k))) {
+                            if (v.getQuestionConceptDatatype().equals("value_text")) {
+                                value = "'" + rs.getString(k) + "'" ;
+                            } else if (GenericValidator.isInt(rs.getString(k))) {
                                 value = rs.getInt(k);
                             } else if (GenericValidator.isFloat(rs.getString(k))) {
                                 value = rs.getDouble(k);
