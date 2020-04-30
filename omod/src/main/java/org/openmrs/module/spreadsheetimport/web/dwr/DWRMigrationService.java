@@ -71,6 +71,7 @@ public class DWRMigrationService {
 			messageString += "Successfully migrated all data. Time taken in minutes: " + timeTakenInMin;
 		}
 
+		System.out.println("Completed processing all datasets ..............");
 		return messageString;
 	}
 

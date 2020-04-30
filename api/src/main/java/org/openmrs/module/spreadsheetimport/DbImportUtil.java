@@ -733,6 +733,8 @@ public class DbImportUtil {
             ResultSet rs = s.executeQuery(query);
             int recordCount = 0;
 
+            // default date of birth
+
             while (rs.next()) {
                 String sql = null;
 
@@ -763,6 +765,17 @@ public class DbImportUtil {
                 lName = rs.getString(COL_LAST_NAME);
                 dob = rs.getDate(COL_DOB);
                 sex = rs.getString(COL_SEX);
+                if (StringUtils.isBlank(sex)) {
+                    sex = "U";
+                }
+
+                if (dob == null) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(Calendar.YEAR, 1920);
+                    calendar.set(Calendar.MONTH, 5);
+                    calendar.set(Calendar.DAY_OF_MONTH, 1);
+                    dob = calendar.getTime();
+                }
 
                 // extract identifiers
 
