@@ -1287,20 +1287,23 @@ public class DbImportUtil {
                 PreparedStatement getEncounterOnDay = conn.prepareStatement(getLabEncounterOnDaySql, Statement.RETURN_GENERATED_KEYS);
 
 
+                int counter = 0;
                 while (rs.next()) {
                     String sql = null;
-
+                    counter++;
                     Integer encounterId = null;
                     Integer patientId = ((Long) rs.getLong("patient_id")).intValue();
                     Date encounterDate = rs.getDate("Encounter_Date");
                     String orderNumber = rs.getString("OrderNumber");
+                    if (StringUtils.isBlank(orderNumber)) {
+                        orderNumber = "OD-P" + patientId + "C" + counter;
+                    }
                     Integer orderReason = 161236;// rs.getInt("OrderReason");
                     String urgency = rs.getString("Urgency");
                     Integer labTest = ((Long) rs.getLong("Lab_test")).intValue();
                     String testResult = rs.getString("Test_result");
                     Date dateTestRequested = rs.getDate("Date_test_requested");
                     Date dateTestResultReceived = rs.getDate("Date_test_result_received");
-
 
                     Integer order = null;
 
@@ -1566,7 +1569,7 @@ public class DbImportUtil {
                         }
 
                         if ((StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
-                                        (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName))
+                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName))
 
                                 ) {
                             Role role = us.getRole("Clinician");
@@ -1586,29 +1589,35 @@ public class DbImportUtil {
                             u.addRole(dRole);
                         }
 
-                        User createdUser = us.saveUser(u, generatedPassword);
-
+                        User createdUser = null;
+                        try {
+                            createdUser = us.saveUser(u, generatedPassword);
+                        } catch (Exception e) {
+                            System.out.print("Error processing row with user_id=" + userId + ", cause: " + e.getCause());
+                        }
                         // update user details
-                        Integer generatedUserId = createdUser.getUserId();
+                        if (createdUser != null) {
+                            Integer generatedUserId = createdUser.getUserId();
 
-                        updateUserDetails.setInt(1, generatedUserId);
-                        updateUserDetails.setInt(2, userId);
+                            updateUserDetails.setInt(1, generatedUserId);
+                            updateUserDetails.setInt(2, userId);
 
-                        updateUserDetails.executeUpdate();
-                        ResultSet rsUpdatedUser = updateUserDetails.getGeneratedKeys();
-                        rsUpdatedUser.next();
-                        rsUpdatedUser.close();
-                        if (
-                                (StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
-                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName)) ||
-                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName))
+                            updateUserDetails.executeUpdate();
+                            ResultSet rsUpdatedUser = updateUserDetails.getGeneratedKeys();
+                            rsUpdatedUser.next();
+                            rsUpdatedUser.close();
+                            if (
+                                    (StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
+                                            (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName)) ||
+                                            (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName))
 
-                                ) {
-                            Provider provider = new Provider();
-                            provider.setIdentifier(createdUser.getSystemId());
-                            provider.setPerson(createdUser.getPerson());
-                            ps.saveProvider(provider);
+                                    ) {
+                                Provider provider = new Provider();
+                                provider.setIdentifier(createdUser.getSystemId());
+                                provider.setPerson(createdUser.getPerson());
+                                ps.saveProvider(provider);
 
+                            }
                         }
                     }
                     recordCount++;
