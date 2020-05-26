@@ -2028,6 +2028,91 @@ public class DbImportUtil {
         }
 
     }
+
+    public static void updateEncounterLocation(List<String> messages, String migrationDatabase) {
+        /**
+         * 1. get the configured location from first time setup
+         * 2. update non null location_id column in visit, encounter, and obs tables
+         */
+        MysqlDataSource dataSource = null;
+        Connection conn = null;
+        Statement s = null;
+        System.out.println("Preparing to update location details to the configured facility ..........");
+
+        try {
+
+            Integer configuredLocationId = null;
+            Properties p = Context.getRuntimeProperties();
+            String url = p.getProperty("connection.url");
+
+            dataSource = new MysqlDataSource();
+            dataSource.setURL(url);
+            dataSource.setUser(p.getProperty("connection.username"));
+            dataSource.setPassword(p.getProperty("connection.password"));
+
+            conn = dataSource.getConnection();
+            s = conn.createStatement();
+
+            String defaultLocationQuery = "select property_value from global_property where property='kenyaemr.defaultLocation'";
+            String visitUpdateQuery = "update visit set location_id = ? where location_id is not null";
+            String encounterUpdateQuery = "update encounter set location_id = ? where location_id is not null";
+            String obsUpdateQuery = "update obs set location_id = ? where location_id is not null";
+
+
+            PreparedStatement psUpdateVisit = conn.prepareStatement(visitUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement psUpdateEncounter = conn.prepareStatement(encounterUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement psUpdateObs = conn.prepareStatement(obsUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+
+            PreparedStatement psGetDefaultLocation = conn.prepareStatement(defaultLocationQuery, Statement.RETURN_GENERATED_KEYS);
+
+            ResultSet rsGetDefaultLocation = psGetDefaultLocation.executeQuery();
+            if (rsGetDefaultLocation.next()) {
+                configuredLocationId = rsGetDefaultLocation.getInt(1);
+                rsGetDefaultLocation.close();
+            }
+
+            if (configuredLocationId != null) {
+                // update visit table
+                psUpdateVisit.setInt(1, configuredLocationId);
+                psUpdateVisit.executeUpdate();
+                ResultSet rsUpdateVisit = psUpdateVisit.getGeneratedKeys();
+                rsUpdateVisit.next();
+                rsUpdateVisit.close();
+
+                // update visit encounter
+                psUpdateEncounter.setInt(1, configuredLocationId);
+                psUpdateEncounter.executeUpdate();
+                ResultSet rsUpdateEncounter = psUpdateEncounter.getGeneratedKeys();
+                rsUpdateEncounter.next();
+                rsUpdateEncounter.close();
+
+                // update visit obs
+                psUpdateObs.setInt(1, configuredLocationId);
+                psUpdateObs.executeUpdate();
+                ResultSet rsUpdateObs = psUpdateObs.getGeneratedKeys();
+                rsUpdateObs.next();
+                rsUpdateObs.close();
+                System.out.println("Successfully updated location details ..........");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Exception e) {
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+    }
 /*    protected boolean validatePatientIdentifier(String identifier) {
         String pitId = getPrespecifiedPatientIdentifierTypeIdFromPatientIdentifierColumn(piColumn);
         if (pitId == null)
