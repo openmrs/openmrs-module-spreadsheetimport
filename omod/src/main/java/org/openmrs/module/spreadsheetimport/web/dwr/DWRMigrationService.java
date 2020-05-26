@@ -49,6 +49,7 @@ public class DWRMigrationService {
 		DbImportUtil.processUsers(messages, migrationDatabase);
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
 		doPostDemographics();
+		//DbImportUtil.addOpenMRSId(messages, migrationDatabase);
 
 		processOtherDatasets(migrationDatabase);
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);

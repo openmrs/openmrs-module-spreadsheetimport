@@ -22,6 +22,11 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.openmrs.GlobalProperty;
+import org.openmrs.Location;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
 import org.openmrs.Person;
 import org.openmrs.PersonName;
 import org.openmrs.Provider;
@@ -30,8 +35,10 @@ import org.openmrs.User;
 import org.openmrs.api.ProviderService;
 import org.openmrs.api.UserService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.idgen.service.IdentifierSourceService;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
+import org.openmrs.util.PrivilegeConstants;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -724,6 +731,21 @@ public class DbImportUtil {
                 e.printStackTrace();
             }
 
+            // get OpenMRS ID type
+            Integer openMRSIdType = null;
+            String sqlOpenMRSIdStr = "select patient_identifier_type_id from patient_identifier_type where uuid='dfacd928-0370-4315-99d7-6ec1c9f7ae76'";
+            ResultSet rsOpenMRSId = null;
+            try {
+                Statement sGetOpenMRSType = conn.createStatement();
+                rsOpenMRSId = sGetOpenMRSType.executeQuery(sqlOpenMRSIdStr);
+                if (rsOpenMRSId.next()) {
+                    openMRSIdType = rsOpenMRSId.getInt(1);
+                    rsOpenMRSId.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
 
             s = conn.createStatement();
 
@@ -733,6 +755,7 @@ public class DbImportUtil {
             ResultSet rs = s.executeQuery(query);
             int recordCount = 0;
 
+            Location defaultLocation = getDefaultLocation();
             // default date of birth
 
             while (rs.next()) {
@@ -855,6 +878,12 @@ public class DbImportUtil {
                 returnedPatient.next();
                 returnedPatient.close();
 
+                sql = "insert into patient_identifier " +
+                        "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
+                        "values (now(),uuid(), NULL,?,?,?,?);";
+
+                PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
                 for (String idType : identifierTypeList) {
                     String colName = null;
                     String colValue = null;
@@ -873,12 +902,6 @@ public class DbImportUtil {
                     colValue = rs.getString(colName);
                     if (colValue != null && !colValue.equals("")) {
 
-                        sql = "insert into patient_identifier " +
-                                "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
-                                "values (now(),uuid(), NULL,?,?,?,?);";
-
-                        PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
                         insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
                         insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
                         insertIdentifierStatement.setInt(3, idTypeId.intValue());
@@ -892,6 +915,17 @@ public class DbImportUtil {
                     }
                 }
 
+                PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
+
+                insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
+                insertIdentifierStatement.setInt(3, openMRSIdType.intValue());
+                insertIdentifierStatement.setString(4, openMRSID.getIdentifier());
+
+                insertIdentifierStatement.executeUpdate();
+                ResultSet returnedId = insertIdentifierStatement.getGeneratedKeys();
+                returnedId.next();
+                returnedId.close();
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
 
@@ -2111,6 +2145,114 @@ public class DbImportUtil {
                 }
             }
         }
+
+    }
+
+    private static PatientIdentifier generateOpenMRSID(Location defaultLocation) {
+        PatientIdentifierType openmrsIDType = Context.getPatientService().getPatientIdentifierTypeByUuid("dfacd928-0370-4315-99d7-6ec1c9f7ae76");
+        String generated = Context.getService(IdentifierSourceService.class).generateIdentifier(openmrsIDType, "Registration");
+        PatientIdentifier identifier = new PatientIdentifier(generated, openmrsIDType, defaultLocation);
+        return identifier;
+    }
+
+    public static Location getDefaultLocation() {
+        try {
+            Context.addProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
+            Context.addProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+            String GP_DEFAULT_LOCATION = "kenyaemr.defaultLocation";
+            GlobalProperty gp = Context.getAdministrationService().getGlobalPropertyObject(GP_DEFAULT_LOCATION);
+            return gp != null ? ((Location) gp.getValue()) : null;
+        }
+        finally {
+            Context.removeProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
+            Context.removeProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+        }
+
+    }
+
+    public static void addOpenMRSId(List<String> messages, String migrationDatabase) {
+        Location defaultLocation = null;
+        System.out.println("Preparing to add OpenMRS ID........");
+
+        Connection conn = null;
+        Statement s = null;
+        Integer upnIdType = null;
+        Integer natIdIdType = null;
+        Integer iqCarePkType = null;
+        Integer configuredLocationId = null;
+
+        try {
+
+            // Connect to db
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+            Properties p = Context.getRuntimeProperties();
+            String url = p.getProperty("connection.url");
+
+            conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                    p.getProperty("connection.password"));
+            conn.setAutoCommit(false);
+
+            String defaultLocationQuery = "select property_value from global_property where property='kenyaemr.defaultLocation'";
+            PreparedStatement psGetDefaultLocation = conn.prepareStatement(defaultLocationQuery, Statement.RETURN_GENERATED_KEYS);
+
+            ResultSet rsGetDefaultLocation = psGetDefaultLocation.executeQuery();
+            if (rsGetDefaultLocation.next()) {
+                configuredLocationId = rsGetDefaultLocation.getInt(1);
+                rsGetDefaultLocation.close();
+            }
+            defaultLocation = Context.getLocationService().getLocation(configuredLocationId);
+
+
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Exception e) {
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.commit();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    conn.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+        int recordCount = 0;
+        for (Patient patient : Context.getPatientService().getAllPatients()) {
+            if (patient.getPatientId() < 18500) {
+                continue;
+            }
+            recordCount++;
+            System.out.println("Processing patient ID........" + patient.getPatientId());
+
+            // add OpenMRS ID
+            PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
+            openMRSID.setPreferred(true);
+            patient.addIdentifier(openMRSID);
+            Context.getPatientService().savePatient(patient);
+            if (recordCount%200==0) {
+                Context.flushSession();
+                //Context.clearSession();
+            }
+
+
+        }
+        System.out.println("Completed adding OpenMRS ID........");
 
     }
 /*    protected boolean validatePatientIdentifier(String identifier) {
