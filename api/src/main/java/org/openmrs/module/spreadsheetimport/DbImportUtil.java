@@ -363,26 +363,11 @@ public class DbImportUtil {
                 String patientIdColVal = rs.getString(mainIdentifierColumn);
                 String internalIdVal = rs.getString(internalIdColumn);
                 String patientId = rs.getString(internalIdColumn);
-                //String patientId = null;
 
-
-                // ==========================
-            /*Statement getPatientSt = conn.createStatement();
-            String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=" + mainPtIdType;
-
-
-            ResultSet getPatientRs = getPatientSt.executeQuery(patientIdsql);
-            if (getPatientRs.next()) {
-                patientId = getPatientRs.getString(1);
-
-            }
-            if (getPatientRs != null) {
-                getPatientRs.close();
-            }*/
-
-                // ==========================
                 String rowEncDate = null;
+                Integer rPersonId = null;
                 int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
+
 
                 if (encDateColumnIdx >= 0) {
                     if (rs.getDate(encounterDateColumn) != null) {
@@ -392,6 +377,7 @@ public class DbImportUtil {
                     }
 
                 }
+
                 Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData = template
                         .getMapOfUniqueImportToColumnSetSortedByImportIdx();
 
@@ -455,41 +441,98 @@ public class DbImportUtil {
                  * Extract values of grouped observations here
                  */
                 if (gObs != null) {
+                    if (StringUtils.isNotBlank(patientIdColVal)) {
+                        rPersonId = Integer.parseInt(patientIdColVal);
+                    }
                     for (GroupedObservations gO : gObs) {
                         boolean groupHasData = false;
-                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
-                            String k = e.getKey();
-                            DatasetColumn v = e.getValue();
+                        if (StringUtils.isNotBlank(gO.getDatasetName())) {
+                            //System.out.println("Hitting the dataset side:::::::::::::::::::::::;;");
+                            Statement sObs = conn.createStatement();
+                            String selectQ = "select * from :migrationDatabase.:datasetName where Person_Id is not null and Person_Id=" + rPersonId + " and date(Encounter_Date)=date(':encounterDate')";
+                            selectQ = selectQ.replace(":migrationDatabase", migrationDatabase);
+                            selectQ = selectQ.replace(":datasetName", gO.getDatasetName());
+                            selectQ = selectQ.replace(":encounterDate", rowEncDate);
+                            //System.out.println("Query::::::: " + selectQ);
+                            if (rPersonId != null) {
+                                ResultSet rsGobs = sObs.executeQuery(selectQ);
+                                if (rsGobs.next() == false) {
+                                    //System.out.println("Query::::::: empty result: " + selectQ);
+                                } else {
+                                    do {
+                                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                                            String k = e.getKey();
+                                            DatasetColumn v = e.getValue();
+                                            Object value = null;
 
+                                            if (v.getQuestionConceptDatatype().equals("value_text")) {
+                                                value = "'" + rsGobs.getString(k) + "'";
+                                            } else if (GenericValidator.isInt(rsGobs.getString(k))) {
+                                                value = rsGobs.getInt(k);
+                                            } else if (GenericValidator.isFloat(rsGobs.getString(k))) {
+                                                value = rsGobs.getDouble(k);
+                                            } else if (GenericValidator.isDouble(rsGobs.getString(k))) {
+                                                value = rsGobs.getDouble(k);
+                                            } else if (GenericValidator.isDate(rsGobs.getString(k), Context.getLocale())) {
+                                                java.util.Date date = rsGobs.getDate(rsGobs.getString(k));
+                                                value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                                            } else {
+                                                value = rsGobs.getString(k);
+                                                if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                                    value = "'" + rsGobs.getString(k) + "'";
+                                                }
+                                            }
 
-                            Object value = null;
+                                            if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                                v.setValue(value.toString());
+                                                //System.out.println("Getting something for the new config");
+                                                if (!groupHasData) {
+                                                    groupHasData = true;
+                                                    gO.setHasData(true);
+                                                }
+                                            }
+                                        }
 
-                            if (v.getQuestionConceptDatatype().equals("value_text")) {
-                                value = "'" + rs.getString(k) + "'" ;
-                            } else if (GenericValidator.isInt(rs.getString(k))) {
-                                value = rs.getInt(k);
-                            } else if (GenericValidator.isFloat(rs.getString(k))) {
-                                value = rs.getDouble(k);
-                            } else if (GenericValidator.isDouble(rs.getString(k))) {
-                                value = rs.getDouble(k);
-                            } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
-                                java.util.Date date = rs.getDate(rs.getString(k));
-                                value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
-                            } else {
-                                value = rs.getString(k);
-                                if (value != null && StringUtils.isNotBlank(value.toString())) {
-                                    value = "'" + rs.getString(k) + "'";
+                                    } while (rsGobs.next());
+                                    //rsGobs.close();
                                 }
                             }
 
-                            if (value != null && StringUtils.isNotBlank(value.toString())) {
-                                v.setValue(value.toString());
-                                if (!groupHasData) {
-                                    groupHasData = true;
-                                    gO.setHasData(true);
+                        } else {
+                            //System.out.println("Hitting the false side:::::::::::::::::::::::;;");
+                            for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                                String k = e.getKey();
+                                DatasetColumn v = e.getValue();
+                                Object value = null;
+
+                                if (v.getQuestionConceptDatatype().equals("value_text")) {
+                                    value = "'" + rs.getString(k) + "'" ;
+                                } else if (GenericValidator.isInt(rs.getString(k))) {
+                                    value = rs.getInt(k);
+                                } else if (GenericValidator.isFloat(rs.getString(k))) {
+                                    value = rs.getDouble(k);
+                                } else if (GenericValidator.isDouble(rs.getString(k))) {
+                                    value = rs.getDouble(k);
+                                } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
+                                    java.util.Date date = rs.getDate(rs.getString(k));
+                                    value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                                } else {
+                                    value = rs.getString(k);
+                                    if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                        value = "'" + rs.getString(k) + "'";
+                                    }
+                                }
+
+                                if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                    v.setValue(value.toString());
+                                    if (!groupHasData) {
+                                        groupHasData = true;
+                                        gO.setHasData(true);
+                                    }
                                 }
                             }
                         }
+
                         gO.setHasData(groupHasData);
 
                     }
@@ -1033,6 +1076,7 @@ public class DbImportUtil {
             for (int i = 0; i < obsGrp.size(); i++) {
                 JSONObject o = (JSONObject) obsGrp.get(i);
                 Long groupingConcept = (Long) (o.get("groupingConcept"));// this value is read as Long
+                String datasetName = (String) (o.get("dataset"));
                 JSONArray dsColumns = (JSONArray) o.get("datasetColumns"); // get col definitions
 
                 Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>();
@@ -1050,6 +1094,7 @@ public class DbImportUtil {
                 GroupedObservations gObs = new GroupedObservations();
                 gObs.setGroupConceptId(groupingConcept.intValue());
                 gObs.setDatasetColumns(datasetColumns);
+                gObs.setDatasetName(datasetName);
                 grpObsForDataset.add(gObs);
 
             }

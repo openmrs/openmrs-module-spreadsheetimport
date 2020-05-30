@@ -10,6 +10,7 @@ import java.util.Map;
  */
 public class GroupedObservations {
     private Integer groupConceptId;
+    private String datasetName;// if data is from a different dataset
     private Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>(); // key is column name, value is DatasetColumn object
     private Boolean hasData;
 
@@ -23,6 +24,14 @@ public class GroupedObservations {
 
     public Integer getGroupConceptId() {
         return groupConceptId;
+    }
+
+    public String getDatasetName() {
+        return datasetName;
+    }
+
+    public void setDatasetName(String datasetName) {
+        this.datasetName = datasetName;
     }
 
     public void setGroupConceptId(Integer groupConceptId) {
