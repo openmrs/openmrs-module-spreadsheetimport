@@ -440,27 +440,36 @@ public class DbImportUtil {
                 /**
                  * Extract values of grouped observations here
                  */
+                List<GroupedObservations> repeatingList = new ArrayList<GroupedObservations>();
+
                 if (gObs != null) {
                     if (StringUtils.isNotBlank(patientIdColVal)) {
                         rPersonId = Integer.parseInt(patientIdColVal);
                     }
+
                     for (GroupedObservations gO : gObs) {
                         boolean groupHasData = false;
                         if (StringUtils.isNotBlank(gO.getDatasetName())) {
-                            //System.out.println("Hitting the dataset side:::::::::::::::::::::::;;");
                             Statement sObs = conn.createStatement();
                             String selectQ = "select * from :migrationDatabase.:datasetName where Person_Id is not null and Person_Id=" + rPersonId + " and date(Encounter_Date)=date(':encounterDate')";
                             selectQ = selectQ.replace(":migrationDatabase", migrationDatabase);
                             selectQ = selectQ.replace(":datasetName", gO.getDatasetName());
                             selectQ = selectQ.replace(":encounterDate", rowEncDate);
-                            //System.out.println("Query::::::: " + selectQ);
                             if (rPersonId != null) {
                                 ResultSet rsGobs = sObs.executeQuery(selectQ);
                                 if (rsGobs.next() == false) {
                                     //System.out.println("Query::::::: empty result: " + selectQ);
                                 } else {
+                                    System.out.println("Grouped OBS config::::::: ");
+                                    System.out.println("Query::::::: " + selectQ);
+
                                     do {
-                                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                                        GroupedObservations rG = new GroupedObservations();
+                                        rG.setDatasetName(gO.getDatasetName());
+                                        rG.setHasData(true);
+                                        rG.setGroupConceptId(gO.getGroupConceptId());
+                                        rG.setDatasetColumns(gO.getDatasetColumns());
+                                        for (Map.Entry<String, DatasetColumn> e : rG.getDatasetColumns().entrySet()) {
                                             String k = e.getKey();
                                             DatasetColumn v = e.getValue();
                                             Object value = null;
@@ -490,11 +499,14 @@ public class DbImportUtil {
                                                     groupHasData = true;
                                                     gO.setHasData(true);
                                                 }
+                                                System.out.println("Value: :::::: Q:" + v.getQuestionConceptId() + "=" + value);
                                             }
                                         }
+                                        System.out.println("Adding to the list::::::");
+
+                                        repeatingList.add(rG);
 
                                     } while (rsGobs.next());
-                                    //rsGobs.close();
                                 }
                             }
 
@@ -538,6 +550,21 @@ public class DbImportUtil {
                     }
                 }
 
+                if (!repeatingList.isEmpty()) {
+                    //repeatingList.remove(repeatingList.size() - 1);//remove the last
+                    gObs.addAll(repeatingList);
+                    System.out.println("Added obs:::::::size= " + repeatingList.size());
+                    for (GroupedObservations gOb : repeatingList) {
+                        for (Map.Entry<String, DatasetColumn> e : gOb.getDatasetColumns().entrySet()) {
+                            String k = e.getKey();
+                            DatasetColumn v = e.getValue();
+                            System.out.print("Key= " + k);
+                            System.out.println(", Q= " + v.getQuestionConceptId() + ", Ans=" + v.getValue());
+
+                        }
+                    }
+
+                }
                 // just count even if patientId is null
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
