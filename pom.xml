@@ -37,7 +37,12 @@ lib/poi-ooxml-3.6-20091214.jar
 				<scope>compile</scope>
 			</dependency>
 			-->
-
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>idgen-api</artifactId>
+				<version>${idgenVersion}</version>
+				<scope>provided</scope>
+			</dependency>
 			<!-- Begin OpenMRS core -->
 
 			<dependency>
@@ -99,14 +104,16 @@ lib/poi-ooxml-3.6-20091214.jar
 				<artifactId>json-simple</artifactId>
 				<version>1.1.1</version>
 			</dependency>
+
 		</dependencies>
 
 	</dependencyManagement>
 
 	<properties>
-		<openMRSVersion>1.9.9</openMRSVersion>
+		<openMRSVersion>1.12.1</openMRSVersion>
 		<poiVersion>3.15</poiVersion>
 		<apacheValidatorVersion>1.6</apacheValidatorVersion>
+		<idgenVersion>2.6</idgenVersion>
 	</properties>
 
 	<build>

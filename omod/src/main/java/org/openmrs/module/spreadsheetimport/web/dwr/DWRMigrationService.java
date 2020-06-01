@@ -49,11 +49,13 @@ public class DWRMigrationService {
 		DbImportUtil.processUsers(messages, migrationDatabase);
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
 		doPostDemographics();
+		//DbImportUtil.addOpenMRSId(messages, migrationDatabase);
 
 		processOtherDatasets(migrationDatabase);
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
 		DbImportUtil.processPatientRelationships(messages, migrationDatabase);
 		DbImportUtil.processPatientContactLists(messages, migrationDatabase);
+		DbImportUtil.updateEncounterLocation(messages, migrationDatabase);
 
 		long endTime = System.nanoTime();
 		long timeTaken = endTime - startTime;
@@ -71,6 +73,7 @@ public class DWRMigrationService {
 			messageString += "Successfully migrated all data. Time taken in minutes: " + timeTakenInMin;
 		}
 
+		System.out.println("Completed processing all datasets ..............");
 		return messageString;
 	}
 

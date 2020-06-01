@@ -22,6 +22,11 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.openmrs.GlobalProperty;
+import org.openmrs.Location;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
 import org.openmrs.Person;
 import org.openmrs.PersonName;
 import org.openmrs.Provider;
@@ -30,8 +35,10 @@ import org.openmrs.User;
 import org.openmrs.api.ProviderService;
 import org.openmrs.api.UserService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.idgen.service.IdentifierSourceService;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
 import org.openmrs.util.OpenmrsUtil;
+import org.openmrs.util.PrivilegeConstants;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -356,26 +363,11 @@ public class DbImportUtil {
                 String patientIdColVal = rs.getString(mainIdentifierColumn);
                 String internalIdVal = rs.getString(internalIdColumn);
                 String patientId = rs.getString(internalIdColumn);
-                //String patientId = null;
 
-
-                // ==========================
-            /*Statement getPatientSt = conn.createStatement();
-            String patientIdsql = "select patient_id from patient_identifier where identifier = " + patientIdColVal + " and identifier_type=" + mainPtIdType;
-
-
-            ResultSet getPatientRs = getPatientSt.executeQuery(patientIdsql);
-            if (getPatientRs.next()) {
-                patientId = getPatientRs.getString(1);
-
-            }
-            if (getPatientRs != null) {
-                getPatientRs.close();
-            }*/
-
-                // ==========================
                 String rowEncDate = null;
+                Integer rPersonId = null;
                 int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
+
 
                 if (encDateColumnIdx >= 0) {
                     if (rs.getDate(encounterDateColumn) != null) {
@@ -385,6 +377,7 @@ public class DbImportUtil {
                     }
 
                 }
+
                 Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData = template
                         .getMapOfUniqueImportToColumnSetSortedByImportIdx();
 
@@ -394,18 +387,18 @@ public class DbImportUtil {
 
                         Object value = null;
 
-                        if (GenericValidator.isInt(rs.getString(column.getName()))) {
+                        if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isInt(rs.getString(column.getName()))) {
                             value = rs.getInt(column.getName());
-                        } else if (GenericValidator.isFloat(rs.getString(column.getName()))) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isFloat(rs.getString(column.getName()))) {
                             value = rs.getDouble(column.getName());
-                        } else if (GenericValidator.isDouble(rs.getString(column.getName()))) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isDouble(rs.getString(column.getName()))) {
                             value = rs.getDouble(column.getName());
-                        } else if (GenericValidator.isDate(rs.getString(column.getName()), Context.getLocale())) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isDate(rs.getString(column.getName()), Context.getLocale())) {
                             java.util.Date date = rs.getDate(rs.getString(column.getName()));
                             value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                         } else {
                             value = rs.getString(column.getName());
-                            if (value != null && !value.equals("")) {
+                            if (value != null && !value.toString().equals("")) {
                                 value = "'" + rs.getString(column.getName()).replace("'","") + "'";
                             }
                         }
@@ -447,43 +440,127 @@ public class DbImportUtil {
                 /**
                  * Extract values of grouped observations here
                  */
+                List<GroupedObservations> repeatingList = new ArrayList<GroupedObservations>();
+                List<GroupedObservations> repeatingColList = new ArrayList<GroupedObservations>();
+
                 if (gObs != null) {
+                    if (StringUtils.isNotBlank(patientIdColVal)) {
+                        rPersonId = Integer.parseInt(patientIdColVal);
+                    }
+
                     for (GroupedObservations gO : gObs) {
                         boolean groupHasData = false;
-                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
-                            String k = e.getKey();
-                            DatasetColumn v = e.getValue();
+                        if (StringUtils.isNotBlank(gO.getDatasetName())) {
+                            Statement sObs = conn.createStatement();
+                            String selectQ = "select * from :migrationDatabase.:datasetName where Person_Id is not null and Person_Id=" + rPersonId + " and date(Encounter_Date)=date(':encounterDate')";
+                            selectQ = selectQ.replace(":migrationDatabase", migrationDatabase);
+                            selectQ = selectQ.replace(":datasetName", gO.getDatasetName());
+                            selectQ = selectQ.replace(":encounterDate", rowEncDate);
+                            if (rPersonId != null) {
+                                ResultSet rsGobs = sObs.executeQuery(selectQ);
+                                if (rsGobs.next() == false) {
+                                } else {
 
-                            Object value = null;
+                                    do {
+                                        GroupedObservations rG = new GroupedObservations();
+                                        rG.setDatasetName(gO.getDatasetName());
+                                        rG.setHasData(true);
+                                        rG.setGroupConceptId(gO.getGroupConceptId());
 
-                            if (GenericValidator.isInt(rs.getString(k))) {
-                                value = rs.getInt(k);
-                            } else if (GenericValidator.isFloat(rs.getString(k))) {
-                                value = rs.getDouble(k);
-                            } else if (GenericValidator.isDouble(rs.getString(k))) {
-                                value = rs.getDouble(k);
-                            } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
-                                java.util.Date date = rs.getDate(rs.getString(k));
-                                value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
-                            } else {
-                                value = rs.getString(k);
-                                if (value != null && StringUtils.isNotBlank(value.toString())) {
-                                    value = "'" + rs.getString(k) + "'";
+                                        Map<String, DatasetColumn> nCols = new HashMap<String, DatasetColumn>();
+                                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                                            String k = e.getKey();
+                                            DatasetColumn v = e.getValue();
+                                            Object value = null;
+                                            DatasetColumn col = new DatasetColumn(v.getQuestionConceptId(), v.getQuestionConceptDatatype());
+
+                                            if (StringUtils.isNotBlank(rsGobs.getString(k)) && v.getQuestionConceptDatatype().equals("value_text")) {
+                                                value = "'" + rsGobs.getString(k) + "'";
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isInt(rsGobs.getString(k))) {
+                                                value = rsGobs.getInt(k);
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isFloat(rsGobs.getString(k))) {
+                                                value = rsGobs.getDouble(k);
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isDouble(rsGobs.getString(k))) {
+                                                value = rsGobs.getDouble(k);
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isDate(rsGobs.getString(k), Context.getLocale())) {
+                                                java.util.Date date = rsGobs.getDate(rsGobs.getString(k));
+                                                value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                                            } else {
+                                                value = rsGobs.getString(k);
+                                                if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                                    value = "'" + rsGobs.getString(k) + "'";
+                                                }
+                                            }
+
+                                            if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                                v.setValue(value.toString());
+                                                col.setValue(value.toString());
+                                                nCols.put(k, col);
+
+                                                if (!groupHasData) {
+                                                    groupHasData = true;
+                                                }
+                                            }
+                                        }
+                                        rG.setDatasetColumns(nCols);
+                                        repeatingList.add(rG);
+
+                                    } while (rsGobs.next());
                                 }
                             }
 
-                            if (value != null && StringUtils.isNotBlank(value.toString())) {
-                                v.setValue(value.toString());
-                                if (!groupHasData) {
-                                    groupHasData = true;
-                                    gO.setHasData(true);
+                        } else {
+                            GroupedObservations rG = new GroupedObservations();
+                            rG.setDatasetName(gO.getDatasetName());
+                            rG.setGroupConceptId(gO.getGroupConceptId());
+                            rG.setDatasetColumns(gO.getDatasetColumns());
+                            Map<String, DatasetColumn> nCols = new HashMap<String, DatasetColumn>();
+
+                            for (Map.Entry<String, DatasetColumn> e : rG.getDatasetColumns().entrySet()) {
+                                String k = e.getKey();
+                                DatasetColumn v = e.getValue();
+                                Object value = null;
+                                DatasetColumn col = new DatasetColumn(v.getQuestionConceptId(), v.getQuestionConceptDatatype());
+
+
+                                if (StringUtils.isNotBlank(rs.getString(k)) && v.getQuestionConceptDatatype().equals("value_text")) {
+                                    value = "'" + rs.getString(k) + "'" ;
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isInt(rs.getString(k))) {
+                                    value = rs.getInt(k);
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isFloat(rs.getString(k))) {
+                                    value = rs.getDouble(k);
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isDouble(rs.getString(k))) {
+                                    value = rs.getDouble(k);
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
+                                    java.util.Date date = rs.getDate(rs.getString(k));
+                                    value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
+                                } else {
+                                    value = rs.getString(k);
+                                    if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                        value = "'" + rs.getString(k) + "'";
+                                    }
                                 }
+
+                                if (value != null && StringUtils.isNotBlank(value.toString())) {
+                                    v.setValue(value.toString());
+                                    col.setValue(value.toString());
+                                    nCols.put(k, col);
+                                    if (!groupHasData) {
+                                        groupHasData = true;
+                                    }
+                                }
+                            }
+                            if (groupHasData) {
+                                rG.setHasData(true);
+                                rG.setDatasetColumns(nCols);
+                                repeatingList.add(rG);
                             }
                         }
-                        gO.setHasData(groupHasData);
+
 
                     }
                 }
+
 
                 // just count even if patientId is null
                 recordCount++;
@@ -493,7 +570,7 @@ public class DbImportUtil {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
-                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
+                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn);
 
 
                     /*if (recordCount == 1) {
@@ -721,6 +798,21 @@ public class DbImportUtil {
                 e.printStackTrace();
             }
 
+            // get OpenMRS ID type
+            Integer openMRSIdType = null;
+            String sqlOpenMRSIdStr = "select patient_identifier_type_id from patient_identifier_type where uuid='dfacd928-0370-4315-99d7-6ec1c9f7ae76'";
+            ResultSet rsOpenMRSId = null;
+            try {
+                Statement sGetOpenMRSType = conn.createStatement();
+                rsOpenMRSId = sGetOpenMRSType.executeQuery(sqlOpenMRSIdStr);
+                if (rsOpenMRSId.next()) {
+                    openMRSIdType = rsOpenMRSId.getInt(1);
+                    rsOpenMRSId.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
 
             s = conn.createStatement();
 
@@ -729,6 +821,9 @@ public class DbImportUtil {
 
             ResultSet rs = s.executeQuery(query);
             int recordCount = 0;
+
+            Location defaultLocation = getDefaultLocation();
+            // default date of birth
 
             while (rs.next()) {
                 String sql = null;
@@ -760,6 +855,17 @@ public class DbImportUtil {
                 lName = rs.getString(COL_LAST_NAME);
                 dob = rs.getDate(COL_DOB);
                 sex = rs.getString(COL_SEX);
+                if (StringUtils.isBlank(sex)) {
+                    sex = "U";
+                }
+
+                if (dob == null) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(Calendar.YEAR, 1920);
+                    calendar.set(Calendar.MONTH, 5);
+                    calendar.set(Calendar.DAY_OF_MONTH, 1);
+                    dob = calendar.getTime();
+                }
 
                 // extract identifiers
 
@@ -839,6 +945,12 @@ public class DbImportUtil {
                 returnedPatient.next();
                 returnedPatient.close();
 
+                sql = "insert into patient_identifier " +
+                        "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
+                        "values (now(),uuid(), NULL,?,?,?,?);";
+
+                PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
                 for (String idType : identifierTypeList) {
                     String colName = null;
                     String colValue = null;
@@ -857,12 +969,6 @@ public class DbImportUtil {
                     colValue = rs.getString(colName);
                     if (colValue != null && !colValue.equals("")) {
 
-                        sql = "insert into patient_identifier " +
-                                "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
-                                "values (now(),uuid(), NULL,?,?,?,?);";
-
-                        PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
                         insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
                         insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
                         insertIdentifierStatement.setInt(3, idTypeId.intValue());
@@ -876,6 +982,17 @@ public class DbImportUtil {
                     }
                 }
 
+                PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
+
+                insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
+                insertIdentifierStatement.setInt(3, openMRSIdType.intValue());
+                insertIdentifierStatement.setString(4, openMRSID.getIdentifier());
+
+                insertIdentifierStatement.executeUpdate();
+                ResultSet returnedId = insertIdentifierStatement.getGeneratedKeys();
+                returnedId.next();
+                returnedId.close();
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
 
@@ -983,6 +1100,7 @@ public class DbImportUtil {
             for (int i = 0; i < obsGrp.size(); i++) {
                 JSONObject o = (JSONObject) obsGrp.get(i);
                 Long groupingConcept = (Long) (o.get("groupingConcept"));// this value is read as Long
+                String datasetName = (String) (o.get("dataset"));
                 JSONArray dsColumns = (JSONArray) o.get("datasetColumns"); // get col definitions
 
                 Map<String, DatasetColumn> datasetColumns = new HashMap<String, DatasetColumn>();
@@ -1000,6 +1118,7 @@ public class DbImportUtil {
                 GroupedObservations gObs = new GroupedObservations();
                 gObs.setGroupConceptId(groupingConcept.intValue());
                 gObs.setDatasetColumns(datasetColumns);
+                gObs.setDatasetName(datasetName);
                 grpObsForDataset.add(gObs);
 
             }
@@ -1284,20 +1403,23 @@ public class DbImportUtil {
                 PreparedStatement getEncounterOnDay = conn.prepareStatement(getLabEncounterOnDaySql, Statement.RETURN_GENERATED_KEYS);
 
 
+                int counter = 0;
                 while (rs.next()) {
                     String sql = null;
-
+                    counter++;
                     Integer encounterId = null;
                     Integer patientId = ((Long) rs.getLong("patient_id")).intValue();
                     Date encounterDate = rs.getDate("Encounter_Date");
                     String orderNumber = rs.getString("OrderNumber");
+                    if (StringUtils.isBlank(orderNumber)) {
+                        orderNumber = "OD-P" + patientId + "C" + counter;
+                    }
                     Integer orderReason = 161236;// rs.getInt("OrderReason");
                     String urgency = rs.getString("Urgency");
                     Integer labTest = ((Long) rs.getLong("Lab_test")).intValue();
                     String testResult = rs.getString("Test_result");
                     Date dateTestRequested = rs.getDate("Date_test_requested");
                     Date dateTestResultReceived = rs.getDate("Date_test_result_received");
-
 
                     Integer order = null;
 
@@ -1563,7 +1685,7 @@ public class DbImportUtil {
                         }
 
                         if ((StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
-                                        (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName))
+                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName))
 
                                 ) {
                             Role role = us.getRole("Clinician");
@@ -1583,29 +1705,35 @@ public class DbImportUtil {
                             u.addRole(dRole);
                         }
 
-                        User createdUser = us.saveUser(u, generatedPassword);
-
+                        User createdUser = null;
+                        try {
+                            createdUser = us.saveUser(u, generatedPassword);
+                        } catch (Exception e) {
+                            System.out.print("Error processing row with user_id=" + userId + ", cause: " + e.getCause());
+                        }
                         // update user details
-                        Integer generatedUserId = createdUser.getUserId();
+                        if (createdUser != null) {
+                            Integer generatedUserId = createdUser.getUserId();
 
-                        updateUserDetails.setInt(1, generatedUserId);
-                        updateUserDetails.setInt(2, userId);
+                            updateUserDetails.setInt(1, generatedUserId);
+                            updateUserDetails.setInt(2, userId);
 
-                        updateUserDetails.executeUpdate();
-                        ResultSet rsUpdatedUser = updateUserDetails.getGeneratedKeys();
-                        rsUpdatedUser.next();
-                        rsUpdatedUser.close();
-                        if (
-                                (StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
-                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName)) ||
-                                (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName))
+                            updateUserDetails.executeUpdate();
+                            ResultSet rsUpdatedUser = updateUserDetails.getGeneratedKeys();
+                            rsUpdatedUser.next();
+                            rsUpdatedUser.close();
+                            if (
+                                    (StringUtils.isNotBlank(designation) && designation.trim().contains(clinicianDesignation)) ||
+                                            (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(clinicianGroupName)) ||
+                                            (StringUtils.isNotBlank(groupNames) && groupNames.trim().contains(triageGroupName))
 
-                                ) {
-                            Provider provider = new Provider();
-                            provider.setIdentifier(createdUser.getSystemId());
-                            provider.setPerson(createdUser.getPerson());
-                            ps.saveProvider(provider);
+                                    ) {
+                                Provider provider = new Provider();
+                                provider.setIdentifier(createdUser.getSystemId());
+                                provider.setPerson(createdUser.getPerson());
+                                ps.saveProvider(provider);
 
+                            }
                         }
                     }
                     recordCount++;
@@ -2001,6 +2129,199 @@ public class DbImportUtil {
                 }
             }
         }
+
+    }
+
+    public static void updateEncounterLocation(List<String> messages, String migrationDatabase) {
+        /**
+         * 1. get the configured location from first time setup
+         * 2. update non null location_id column in visit, encounter, and obs tables
+         */
+        MysqlDataSource dataSource = null;
+        Connection conn = null;
+        Statement s = null;
+        System.out.println("Preparing to update location details to the configured facility ..........");
+
+        try {
+
+            Integer configuredLocationId = null;
+            Properties p = Context.getRuntimeProperties();
+            String url = p.getProperty("connection.url");
+
+            dataSource = new MysqlDataSource();
+            dataSource.setURL(url);
+            dataSource.setUser(p.getProperty("connection.username"));
+            dataSource.setPassword(p.getProperty("connection.password"));
+
+            conn = dataSource.getConnection();
+            s = conn.createStatement();
+
+            String defaultLocationQuery = "select property_value from global_property where property='kenyaemr.defaultLocation'";
+            String visitUpdateQuery = "update visit set location_id = ? where location_id is not null";
+            String encounterUpdateQuery = "update encounter set location_id = ? where location_id is not null";
+            String obsUpdateQuery = "update obs set location_id = ? where location_id is not null";
+
+
+            PreparedStatement psUpdateVisit = conn.prepareStatement(visitUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement psUpdateEncounter = conn.prepareStatement(encounterUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement psUpdateObs = conn.prepareStatement(obsUpdateQuery, Statement.RETURN_GENERATED_KEYS);
+
+            PreparedStatement psGetDefaultLocation = conn.prepareStatement(defaultLocationQuery, Statement.RETURN_GENERATED_KEYS);
+
+            ResultSet rsGetDefaultLocation = psGetDefaultLocation.executeQuery();
+            if (rsGetDefaultLocation.next()) {
+                configuredLocationId = rsGetDefaultLocation.getInt(1);
+                rsGetDefaultLocation.close();
+            }
+
+            if (configuredLocationId != null) {
+                // update visit table
+                psUpdateVisit.setInt(1, configuredLocationId);
+                psUpdateVisit.executeUpdate();
+                ResultSet rsUpdateVisit = psUpdateVisit.getGeneratedKeys();
+                rsUpdateVisit.next();
+                rsUpdateVisit.close();
+
+                // update visit encounter
+                psUpdateEncounter.setInt(1, configuredLocationId);
+                psUpdateEncounter.executeUpdate();
+                ResultSet rsUpdateEncounter = psUpdateEncounter.getGeneratedKeys();
+                rsUpdateEncounter.next();
+                rsUpdateEncounter.close();
+
+                // update visit obs
+                psUpdateObs.setInt(1, configuredLocationId);
+                psUpdateObs.executeUpdate();
+                ResultSet rsUpdateObs = psUpdateObs.getGeneratedKeys();
+                rsUpdateObs.next();
+                rsUpdateObs.close();
+                System.out.println("Successfully updated location details ..........");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Exception e) {
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+    }
+
+    private static PatientIdentifier generateOpenMRSID(Location defaultLocation) {
+        PatientIdentifierType openmrsIDType = Context.getPatientService().getPatientIdentifierTypeByUuid("dfacd928-0370-4315-99d7-6ec1c9f7ae76");
+        String generated = Context.getService(IdentifierSourceService.class).generateIdentifier(openmrsIDType, "Registration");
+        PatientIdentifier identifier = new PatientIdentifier(generated, openmrsIDType, defaultLocation);
+        return identifier;
+    }
+
+    public static Location getDefaultLocation() {
+        try {
+            Context.addProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
+            Context.addProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+            String GP_DEFAULT_LOCATION = "kenyaemr.defaultLocation";
+            GlobalProperty gp = Context.getAdministrationService().getGlobalPropertyObject(GP_DEFAULT_LOCATION);
+            return gp != null ? ((Location) gp.getValue()) : null;
+        }
+        finally {
+            Context.removeProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
+            Context.removeProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+        }
+
+    }
+
+    public static void addOpenMRSId(List<String> messages, String migrationDatabase) {
+        Location defaultLocation = null;
+        System.out.println("Preparing to add OpenMRS ID........");
+
+        Connection conn = null;
+        Statement s = null;
+        Integer upnIdType = null;
+        Integer natIdIdType = null;
+        Integer iqCarePkType = null;
+        Integer configuredLocationId = null;
+
+        try {
+
+            // Connect to db
+            Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+            Properties p = Context.getRuntimeProperties();
+            String url = p.getProperty("connection.url");
+
+            conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                    p.getProperty("connection.password"));
+            conn.setAutoCommit(false);
+
+            String defaultLocationQuery = "select property_value from global_property where property='kenyaemr.defaultLocation'";
+            PreparedStatement psGetDefaultLocation = conn.prepareStatement(defaultLocationQuery, Statement.RETURN_GENERATED_KEYS);
+
+            ResultSet rsGetDefaultLocation = psGetDefaultLocation.executeQuery();
+            if (rsGetDefaultLocation.next()) {
+                configuredLocationId = rsGetDefaultLocation.getInt(1);
+                rsGetDefaultLocation.close();
+            }
+            defaultLocation = Context.getLocationService().getLocation(configuredLocationId);
+
+
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Exception e) {
+                }
+            }
+            if (conn != null) {
+                try {
+                    conn.commit();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    conn.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+        int recordCount = 0;
+        for (Patient patient : Context.getPatientService().getAllPatients()) {
+            if (patient.getPatientId() < 18500) {
+                continue;
+            }
+            recordCount++;
+            System.out.println("Processing patient ID........" + patient.getPatientId());
+
+            // add OpenMRS ID
+            PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
+            openMRSID.setPreferred(true);
+            patient.addIdentifier(openMRSID);
+            Context.getPatientService().savePatient(patient);
+            if (recordCount%200==0) {
+                Context.flushSession();
+                //Context.clearSession();
+            }
+
+
+        }
+        System.out.println("Completed adding OpenMRS ID........");
 
     }
 /*    protected boolean validatePatientIdentifier(String identifier) {
