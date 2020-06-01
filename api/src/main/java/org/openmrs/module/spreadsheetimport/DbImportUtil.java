@@ -441,6 +441,7 @@ public class DbImportUtil {
                  * Extract values of grouped observations here
                  */
                 List<GroupedObservations> repeatingList = new ArrayList<GroupedObservations>();
+                List<GroupedObservations> repeatingColList = new ArrayList<GroupedObservations>();
 
                 if (gObs != null) {
                     if (StringUtils.isNotBlank(patientIdColVal)) {
@@ -460,19 +461,21 @@ public class DbImportUtil {
                                 if (rsGobs.next() == false) {
                                     //System.out.println("Query::::::: empty result: " + selectQ);
                                 } else {
-                                    System.out.println("Grouped OBS config::::::: ");
-                                    System.out.println("Query::::::: " + selectQ);
+                                    //System.out.println("Grouped OBS config::::::: ");
+                                    //System.out.println("Query::::::: " + selectQ);
 
                                     do {
                                         GroupedObservations rG = new GroupedObservations();
                                         rG.setDatasetName(gO.getDatasetName());
                                         rG.setHasData(true);
                                         rG.setGroupConceptId(gO.getGroupConceptId());
-                                        rG.setDatasetColumns(gO.getDatasetColumns());
-                                        for (Map.Entry<String, DatasetColumn> e : rG.getDatasetColumns().entrySet()) {
+
+                                        Map<String, DatasetColumn> nCols = new HashMap<String, DatasetColumn>();
+                                        for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
                                             String k = e.getKey();
                                             DatasetColumn v = e.getValue();
                                             Object value = null;
+                                            DatasetColumn col = new DatasetColumn(v.getQuestionConceptId(), v.getQuestionConceptDatatype());
 
                                             if (v.getQuestionConceptDatatype().equals("value_text")) {
                                                 value = "'" + rsGobs.getString(k) + "'";
@@ -494,16 +497,19 @@ public class DbImportUtil {
 
                                             if (value != null && StringUtils.isNotBlank(value.toString())) {
                                                 v.setValue(value.toString());
+                                                col.setValue(value.toString());
+                                                nCols.put(k, col);
+
                                                 //System.out.println("Getting something for the new config");
                                                 if (!groupHasData) {
                                                     groupHasData = true;
-                                                    gO.setHasData(true);
+                                                    //gO.setHasData(true);
                                                 }
-                                                System.out.println("Value: :::::: Q:" + v.getQuestionConceptId() + "=" + value);
+                                               // System.out.println("Value: :::::: Q:" + v.getQuestionConceptId() + "=" + value);
                                             }
                                         }
-                                        System.out.println("Adding to the list::::::");
-
+                                        //System.out.println("Adding to the list::::::");
+                                        rG.setDatasetColumns(nCols);
                                         repeatingList.add(rG);
 
                                     } while (rsGobs.next());
@@ -512,10 +518,17 @@ public class DbImportUtil {
 
                         } else {
                             //System.out.println("Hitting the false side:::::::::::::::::::::::;;");
+                            /*GroupedObservations rG = new GroupedObservations();
+                            rG.setDatasetName(gO.getDatasetName());
+                            boolean isNotNull = false;
+                            //rG.setHasData(true);
+                            rG.setGroupConceptId(gO.getGroupConceptId());
+                            rG.setDatasetColumns(gO.getDatasetColumns());*/
                             for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
                                 String k = e.getKey();
                                 DatasetColumn v = e.getValue();
                                 Object value = null;
+
 
                                 if (v.getQuestionConceptDatatype().equals("value_text")) {
                                     value = "'" + rs.getString(k) + "'" ;
@@ -525,7 +538,7 @@ public class DbImportUtil {
                                     value = rs.getDouble(k);
                                 } else if (GenericValidator.isDouble(rs.getString(k))) {
                                     value = rs.getDouble(k);
-                                } else if (GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
                                     java.util.Date date = rs.getDate(rs.getString(k));
                                     value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                                 } else {
@@ -543,6 +556,10 @@ public class DbImportUtil {
                                     }
                                 }
                             }
+                            if (groupHasData) {
+                                repeatingList.add(gO);
+                            }
+                            //rG.setHasData(isNotNull);
                         }
 
                         gO.setHasData(groupHasData);
@@ -550,9 +567,9 @@ public class DbImportUtil {
                     }
                 }
 
-                if (!repeatingList.isEmpty()) {
+                /*if (!repeatingList.isEmpty()) {
                     //repeatingList.remove(repeatingList.size() - 1);//remove the last
-                    gObs.addAll(repeatingList);
+                    //gObs.addAll(repeatingList);
                     System.out.println("Added obs:::::::size= " + repeatingList.size());
                     for (GroupedObservations gOb : repeatingList) {
                         for (Map.Entry<String, DatasetColumn> e : gOb.getDatasetColumns().entrySet()) {
@@ -564,7 +581,7 @@ public class DbImportUtil {
                         }
                     }
 
-                }
+                }*/
                 // just count even if patientId is null
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
@@ -573,7 +590,7 @@ public class DbImportUtil {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
-                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, gObs, rollbackTransaction, conn);
+                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn);
 
 
                     /*if (recordCount == 1) {
