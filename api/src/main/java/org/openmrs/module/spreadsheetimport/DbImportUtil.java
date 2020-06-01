@@ -387,18 +387,18 @@ public class DbImportUtil {
 
                         Object value = null;
 
-                        if (GenericValidator.isInt(rs.getString(column.getName()))) {
+                        if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isInt(rs.getString(column.getName()))) {
                             value = rs.getInt(column.getName());
-                        } else if (GenericValidator.isFloat(rs.getString(column.getName()))) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isFloat(rs.getString(column.getName()))) {
                             value = rs.getDouble(column.getName());
-                        } else if (GenericValidator.isDouble(rs.getString(column.getName()))) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isDouble(rs.getString(column.getName()))) {
                             value = rs.getDouble(column.getName());
-                        } else if (GenericValidator.isDate(rs.getString(column.getName()), Context.getLocale())) {
+                        } else if (StringUtils.isNotBlank(rs.getString(column.getName())) && GenericValidator.isDate(rs.getString(column.getName()), Context.getLocale())) {
                             java.util.Date date = rs.getDate(rs.getString(column.getName()));
                             value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                         } else {
                             value = rs.getString(column.getName());
-                            if (value != null && !value.equals("")) {
+                            if (value != null && !value.toString().equals("")) {
                                 value = "'" + rs.getString(column.getName()).replace("'","") + "'";
                             }
                         }
@@ -459,10 +459,7 @@ public class DbImportUtil {
                             if (rPersonId != null) {
                                 ResultSet rsGobs = sObs.executeQuery(selectQ);
                                 if (rsGobs.next() == false) {
-                                    //System.out.println("Query::::::: empty result: " + selectQ);
                                 } else {
-                                    //System.out.println("Grouped OBS config::::::: ");
-                                    //System.out.println("Query::::::: " + selectQ);
 
                                     do {
                                         GroupedObservations rG = new GroupedObservations();
@@ -477,15 +474,15 @@ public class DbImportUtil {
                                             Object value = null;
                                             DatasetColumn col = new DatasetColumn(v.getQuestionConceptId(), v.getQuestionConceptDatatype());
 
-                                            if (v.getQuestionConceptDatatype().equals("value_text")) {
+                                            if (StringUtils.isNotBlank(rsGobs.getString(k)) && v.getQuestionConceptDatatype().equals("value_text")) {
                                                 value = "'" + rsGobs.getString(k) + "'";
-                                            } else if (GenericValidator.isInt(rsGobs.getString(k))) {
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isInt(rsGobs.getString(k))) {
                                                 value = rsGobs.getInt(k);
-                                            } else if (GenericValidator.isFloat(rsGobs.getString(k))) {
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isFloat(rsGobs.getString(k))) {
                                                 value = rsGobs.getDouble(k);
-                                            } else if (GenericValidator.isDouble(rsGobs.getString(k))) {
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isDouble(rsGobs.getString(k))) {
                                                 value = rsGobs.getDouble(k);
-                                            } else if (GenericValidator.isDate(rsGobs.getString(k), Context.getLocale())) {
+                                            } else if (StringUtils.isNotBlank(rsGobs.getString(k)) && GenericValidator.isDate(rsGobs.getString(k), Context.getLocale())) {
                                                 java.util.Date date = rsGobs.getDate(rsGobs.getString(k));
                                                 value = "'" + new java.sql.Timestamp(date.getTime()).toString() + "'";
                                             } else {
@@ -500,15 +497,11 @@ public class DbImportUtil {
                                                 col.setValue(value.toString());
                                                 nCols.put(k, col);
 
-                                                //System.out.println("Getting something for the new config");
                                                 if (!groupHasData) {
                                                     groupHasData = true;
-                                                    //gO.setHasData(true);
                                                 }
-                                               // System.out.println("Value: :::::: Q:" + v.getQuestionConceptId() + "=" + value);
                                             }
                                         }
-                                        //System.out.println("Adding to the list::::::");
                                         rG.setDatasetColumns(nCols);
                                         repeatingList.add(rG);
 
@@ -517,26 +510,26 @@ public class DbImportUtil {
                             }
 
                         } else {
-                            //System.out.println("Hitting the false side:::::::::::::::::::::::;;");
-                            /*GroupedObservations rG = new GroupedObservations();
+                            GroupedObservations rG = new GroupedObservations();
                             rG.setDatasetName(gO.getDatasetName());
-                            boolean isNotNull = false;
-                            //rG.setHasData(true);
                             rG.setGroupConceptId(gO.getGroupConceptId());
-                            rG.setDatasetColumns(gO.getDatasetColumns());*/
-                            for (Map.Entry<String, DatasetColumn> e : gO.getDatasetColumns().entrySet()) {
+                            rG.setDatasetColumns(gO.getDatasetColumns());
+                            Map<String, DatasetColumn> nCols = new HashMap<String, DatasetColumn>();
+
+                            for (Map.Entry<String, DatasetColumn> e : rG.getDatasetColumns().entrySet()) {
                                 String k = e.getKey();
                                 DatasetColumn v = e.getValue();
                                 Object value = null;
+                                DatasetColumn col = new DatasetColumn(v.getQuestionConceptId(), v.getQuestionConceptDatatype());
 
 
-                                if (v.getQuestionConceptDatatype().equals("value_text")) {
+                                if (StringUtils.isNotBlank(rs.getString(k)) && v.getQuestionConceptDatatype().equals("value_text")) {
                                     value = "'" + rs.getString(k) + "'" ;
-                                } else if (GenericValidator.isInt(rs.getString(k))) {
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isInt(rs.getString(k))) {
                                     value = rs.getInt(k);
-                                } else if (GenericValidator.isFloat(rs.getString(k))) {
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isFloat(rs.getString(k))) {
                                     value = rs.getDouble(k);
-                                } else if (GenericValidator.isDouble(rs.getString(k))) {
+                                } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isDouble(rs.getString(k))) {
                                     value = rs.getDouble(k);
                                 } else if (StringUtils.isNotBlank(rs.getString(k)) && GenericValidator.isDate(rs.getString(k), Context.getLocale())) {
                                     java.util.Date date = rs.getDate(rs.getString(k));
@@ -550,38 +543,25 @@ public class DbImportUtil {
 
                                 if (value != null && StringUtils.isNotBlank(value.toString())) {
                                     v.setValue(value.toString());
+                                    col.setValue(value.toString());
+                                    nCols.put(k, col);
                                     if (!groupHasData) {
                                         groupHasData = true;
-                                        gO.setHasData(true);
                                     }
                                 }
                             }
                             if (groupHasData) {
-                                repeatingList.add(gO);
+                                rG.setHasData(true);
+                                rG.setDatasetColumns(nCols);
+                                repeatingList.add(rG);
                             }
-                            //rG.setHasData(isNotNull);
                         }
 
-                        gO.setHasData(groupHasData);
 
                     }
                 }
 
-                /*if (!repeatingList.isEmpty()) {
-                    //repeatingList.remove(repeatingList.size() - 1);//remove the last
-                    //gObs.addAll(repeatingList);
-                    System.out.println("Added obs:::::::size= " + repeatingList.size());
-                    for (GroupedObservations gOb : repeatingList) {
-                        for (Map.Entry<String, DatasetColumn> e : gOb.getDatasetColumns().entrySet()) {
-                            String k = e.getKey();
-                            DatasetColumn v = e.getValue();
-                            System.out.print("Key= " + k);
-                            System.out.println(", Q= " + v.getQuestionConceptId() + ", Ans=" + v.getValue());
 
-                        }
-                    }
-
-                }*/
                 // just count even if patientId is null
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty(template.getName(), "processedCount", String.valueOf(recordCount));
