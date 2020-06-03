@@ -1422,15 +1422,13 @@ public class DbImportUtil {
                     Date dateTestResultReceived = rs.getDate("Date_test_result_received");
 
                     Integer order = null;
-
-                    if (StringUtils.isNotBlank(testResult)) { // handle lab result. create encounter, order, lab test, and obs for the result
-                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null && labTest != null) {
+                    // SQL NULL is returned as 0
+                    if (StringUtils.isNotBlank(testResult) && patientId != null && patientId != 0) { // handle lab result. create encounter, order, lab test, and obs for the result
+                        if (StringUtils.isNotBlank(orderNumber) && dateTestResultReceived != null && dateTestRequested != null && encounterDate != null && patientId != null && (labTest != null && labTest != 0)) {
 
                             getEncounterOnDay.setInt(1, labMetadata.getEncounterTypeId());
                             getEncounterOnDay.setDate(2, new java.sql.Date(encounterDate.getTime()));
                             getEncounterOnDay.setInt(3, patientId);
-
-
                             ResultSet rsGetEncounter = getEncounterOnDay.executeQuery();
                             if (rsGetEncounter.next()) {
                                 orderEncounter = rsGetEncounter.getInt(1);
@@ -1533,11 +1531,11 @@ public class DbImportUtil {
                         }
 
                     } else { // handle a pending order result
-                        if (labTest.equals(LabOrderDetails.HIV_VIRAL_LOAD)) {
+                        /*if (labTest.equals(LabOrderDetails.HIV_VIRAL_LOAD)) {
 
                         } else {
 
-                        }
+                        }*/
 
                     }
 
