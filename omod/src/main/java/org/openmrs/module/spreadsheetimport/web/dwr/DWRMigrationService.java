@@ -47,11 +47,13 @@ public class DWRMigrationService {
 		String migrationDatabase = Context.getAdministrationService().getGlobalProperty(GP_MIGRATION_DATABASE);
 		DbImportUtil.setRowCountForDatasets(migrationDatabase);
 		DbImportUtil.processUsers(messages, migrationDatabase);
+		Context.flushSession();
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
 		doPostDemographics();
 		//DbImportUtil.addOpenMRSId(messages, migrationDatabase);
 
 		processOtherDatasets(migrationDatabase);
+
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
 		DbImportUtil.processPatientRelationships(messages, migrationDatabase);
 		DbImportUtil.processPatientContactLists(messages, migrationDatabase);
@@ -188,6 +190,7 @@ public class DWRMigrationService {
 			try {
 				DbImportUtil.importTemplate(template, messages, rollbackTransaction, primaryIdentifierType, grpObsConfigFile, migrationDatabase);
 				System.out.println("Completed processing " + dataset + " dataset ..............");
+				Context.flushSession();
 
 			} catch (Exception e1) {
 				e1.printStackTrace();
