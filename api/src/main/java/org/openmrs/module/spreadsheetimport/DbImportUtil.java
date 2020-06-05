@@ -638,17 +638,11 @@ public class DbImportUtil {
          */
         long startTime = System.nanoTime();
 
-        String NEXT_OF_KIN_ADDRESS = "7cf22bec-d90a-46ad-9f48-035952261294";
-        String NEXT_OF_KIN_CONTACT = "342a1d39-c541-4b29-8818-930916f4c2dc";
-        String NEXT_OF_KIN_NAME = "830bef6d-b01f-449d-9f8d-ac0fede8dbd3";
-        String NEXT_OF_KIN_RELATIONSHIP = "d0aa9fd1-2ac5-45d8-9c5e-4317c622c8f5";
-        String SUBCHIEF_NAME = "40fa0c9c-7415-43ff-a4eb-c7c73d7b1a7a";
+
         String TELEPHONE_CONTACT = "b2c38640-2603-4629-aebd-3b54f33f1e3a";
         String EMAIL_ADDRESS = "b8d0b331-1d2d-4a9a-b741-1816f498bdb6";
         String ALTERNATE_PHONE_CONTACT = "94614350-84c8-41e0-ac29-86bc107069be";
         String NEAREST_HEALTH_CENTER = "27573398-4651-4ce5-89d8-abec5998165c";
-        String GUARDIAN_FIRST_NAME = "8caf6d06-9070-49a5-b715-98b45e5d427b";
-        String GUARDIAN_LAST_NAME = "0803abbd-2be4-4091-80b3-80c6940303df";
 
         String CWC_NUMBER = "1dc8b419-35f2-4316-8d68-135f0689859b";
         String DISTRICT_REGISTRATION_NUMBER = "d8ee3b8c-a8fc-4d6b-af6a-9423be5f8906";
@@ -685,65 +679,18 @@ public class DbImportUtil {
         String COL_MARITAL_STATUS = "Marital_status";
         String COL_OCCUPATION = "Occupation";
         String COL_EDUCATION_LEVEL = "Education_level";
-
-
-        Map<String, String> columnMap = new HashMap<String, String>(); // stores table.column mapping for template columns
-        Map<String, String> columnConfigMap = new HashMap<String, String>();// stores type uuid
-
-        columnMap.put("First_Name", "person_name.given_name");
-        columnMap.put("Middle_Name", "person_name.middle_name");
-        columnMap.put("Last_Name", "person_name.family_name");
-        columnMap.put("DOB", "birthdate");
-        columnMap.put("Sex", "gender");
-
-        // identifiers
-        columnMap.put("UPN", "patient_identifier.identifier");
-        columnMap.put("National_id_no", "patient_identifier.identifier");
-
-        columnConfigMap.put("UPN", UNIQUE_PATIENT_NUMBER);
-        columnConfigMap.put("National_id_no", NATIONAL_ID);
-
-
-        // addresses
-        columnMap.put("Postal_Address", "person_address.address1");
-        columnMap.put("County", "person_address.county_district");
-        columnMap.put("Sub_county", "person_address.state_province");
-        columnMap.put("Ward", "person_address.address4");
-        columnMap.put("Village", "person_address.city_village");
-        columnMap.put("Landmark", "person_address.address2");
-
-        //death status
-        columnMap.put("Dead", "dead");
-        columnMap.put("Death_date", "person.dead");
-
-        // person attributes
-        columnMap.put("Phone_number", "person_attribute.value");
-        columnMap.put("Alternate_Phone_number", "person_attribute.value");
-        columnMap.put("Email_address", "person_attribute.value");
-        columnMap.put("Nearest_Health_Center", "person_attribute.value");
-
-        columnConfigMap.put("Phone_number", TELEPHONE_CONTACT);
-        columnConfigMap.put("Alternate_Phone_number", ALTERNATE_PHONE_CONTACT);
-        columnConfigMap.put("Email_address", EMAIL_ADDRESS);
-        columnConfigMap.put("Nearest_Health_Center", NEAREST_HEALTH_CENTER);
-
-
-        // obs
-        columnMap.put("Marital_status", "obs.value_coded");
-        columnMap.put("Occupation", "obs.value_coded");
-        columnMap.put("Education_level", "obs.value_coded");
-
-        columnConfigMap.put("Marital_status", "1054");
-        columnConfigMap.put("Occupation", "1542");
-        columnConfigMap.put("Education_level", "1712");
-
+        String COL_NEXT_OF_KIN_NAME = "Next_of_kin";
+        String COL_NEXT_OF_KIN_ADDRESS = "Next_of_kin_address";
+        String COL_NEXT_OF_KIN_CONTACT = "Next_of_kin_phone";
+        String COL_NEXT_OF_KIN_RELATIONSHIP = "Next_of_kin_relationship";
+        String COL_PHONE_NUMBER = "Phone_number";
+        String COL_ALTERNATIVE_PHONE_NUMBER = "Alternate_Phone_number";
 
         Connection conn = null;
         Statement s = null;
         Integer upnIdType = null;
         Integer natIdIdType = null;
         Integer iqCarePkType = null;
-
 
         try {
 
@@ -823,6 +770,8 @@ public class DbImportUtil {
             int recordCount = 0;
 
             Location defaultLocation = getDefaultLocation();
+            PatientRegistrationMetadata.setRegistrationMetadata();
+            PatientRegistrationMetadata registrationMetadata = PatientRegistrationMetadata.registrationMetadata;
             // default date of birth
 
             while (rs.next()) {
@@ -848,6 +797,17 @@ public class DbImportUtil {
                 String nationalId = null;
                 String iqCarePersonId = null;
 
+                String phoneContact = null;
+                String alternativePhoneContact = null;
+                String nextOfKin = null;
+                String nextOfKinPhoneContact = null;
+                String nextOfKinRelationship = null;
+                String nextOfKinAddress = null;
+
+                Long occupation = null;
+                Long maritalStatus = null;
+                Long educationLevel = null;
+
 
                 // extract person name
                 fName = rs.getString(COL_FIRST_NAME);
@@ -868,6 +828,19 @@ public class DbImportUtil {
                 }
 
                 // extract identifiers
+                phoneContact = rs.getString(COL_PHONE_NUMBER);
+                alternativePhoneContact = rs.getString(COL_ALTERNATIVE_PHONE_NUMBER);
+                nextOfKin = rs.getString(COL_NEXT_OF_KIN_NAME);
+                nextOfKinAddress = rs.getString(COL_NEXT_OF_KIN_ADDRESS);
+                nextOfKinPhoneContact = rs.getString(COL_NEXT_OF_KIN_CONTACT);
+                nextOfKinRelationship = rs.getString(COL_NEXT_OF_KIN_RELATIONSHIP);
+
+                occupation = rs.getLong(COL_OCCUPATION);
+                educationLevel = rs.getLong(COL_EDUCATION_LEVEL);
+                maritalStatus = rs.getLong(COL_MARITAL_STATUS);
+
+
+
 
                 iqCarePersonId = rs.getString(COL_IQCARE_PERSON_PK);
                 upn = rs.getString(COL_UPN);
@@ -882,6 +855,8 @@ public class DbImportUtil {
                 landMark = rs.getString(COL_LAND_MARK);
                 postalAddress = rs.getString(COL_POSTAL_ADDRESS);
                 nearestHealthCenter = rs.getString("Nearest_Health_Centre");
+
+                //extract person attributes
 
                 // insert person query
                 sql = "insert into person (date_created, uuid, creator, gender, birthdate) " +
@@ -982,6 +957,61 @@ public class DbImportUtil {
                     }
                 }
 
+                // save person attributes
+                Statement personAttributeSt = conn.createStatement();
+                if (StringUtils.isNotBlank(phoneContact)) {
+                    phoneContact = phoneContact.replace("\\", "");
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getTelephoneContactId() + ", '" + phoneContact + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (StringUtils.isNotBlank(alternativePhoneContact)) {
+                    alternativePhoneContact = alternativePhoneContact.replace("\\", "");
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getAlternatePhoneContactId() + ", '" + alternativePhoneContact + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (StringUtils.isNotBlank(nextOfKin)) {
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinNameId() + ", '" + nextOfKin + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (StringUtils.isNotBlank(nextOfKinPhoneContact)) {
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinContactId() + ", '" + nextOfKinPhoneContact + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (StringUtils.isNotBlank(nextOfKinAddress)) {
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinAddressId() + ", '" + nextOfKinAddress + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (StringUtils.isNotBlank(nextOfKinRelationship)) {
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinRelationshipId() + ", '" + nextOfKinRelationship + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (maritalStatus != null && maritalStatus != 0) {
+                    sql = "insert into obs (person_id, concept_id, value_coded, creator, date_created, uuid, obs_datetime) values (" + patientId.intValue() + ", " + PatientRegistrationMetadata.MARITAL_STATUS_CONCEPT + ", " + maritalStatus.intValue() + ", " + Context.getAuthenticatedUser().getId() + ", now(), uuid(),now()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (educationLevel != null && educationLevel != 0) {
+                    sql = "insert into obs (person_id, concept_id, value_coded, creator, date_created, uuid, obs_datetime) values (" + patientId.intValue() + ", " + PatientRegistrationMetadata.EDUCATION_LEVEL_CONCEPT + ", " + educationLevel.intValue() + ", " + Context.getAuthenticatedUser().getId() + ", now(), uuid(),now()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+
+                if (occupation != null && occupation != 0) {
+                    sql = "insert into obs (person_id, concept_id, value_coded, creator, date_created, uuid, obs_datetime) values (" + patientId.intValue() + ", " + PatientRegistrationMetadata.OCCUPATION_CONCEPT + ", " + occupation.intValue() + ", " + Context.getAuthenticatedUser().getId() + ", now(), uuid(), now()" + ")";
+                    personAttributeSt.addBatch(sql);
+                }
+                personAttributeSt.executeBatch();
+
+
+
+
+                personAttributeSt.close();
+
                 PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
 
                 insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
@@ -996,11 +1026,6 @@ public class DbImportUtil {
                 recordCount++;
                 DbImportUtil.updateMigrationProgressMapProperty("Demographics", "processedCount", String.valueOf(recordCount));
 
-                /*if (recordCount == 1) {
-                    System.out.println(new Date().toString() + ":: Completed processing record 1 ::  in demographics dataset");
-                } else if (recordCount%5000==0) {
-                    System.out.println(new Date().toString() + ":: Completed Processing record :: " + recordCount + " in demographics dataset");
-                }*/
             }
 
         } catch (IllegalAccessException e) {
@@ -1034,6 +1059,8 @@ public class DbImportUtil {
 
         return "Successful";
     }
+
+
 
     public static Map<String, Integer> getTemplateDatasetMap() {
         String GP_MIGRATION_CONFIG_DIR = "spreadsheetimport.migrationConfigDirectory";
