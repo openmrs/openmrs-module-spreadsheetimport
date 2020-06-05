@@ -50,8 +50,6 @@ public class DWRMigrationService {
 		Context.flushSession();
 		successfulProcessMsg = DbImportUtil.processDemographicsDataset(messages, migrationDatabase);
 		doPostDemographics();
-		//DbImportUtil.addOpenMRSId(messages, migrationDatabase);
-
 		processOtherDatasets(migrationDatabase);
 
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
