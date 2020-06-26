@@ -784,6 +784,8 @@ public class DbImportUtil {
                 String mName = null;
                 String lName = null;
                 Date dob = null;
+                String dead = null;
+                Date deathDate = null;
 
                 String sex = null;
                 String county = null;
@@ -827,6 +829,9 @@ public class DbImportUtil {
                     dob = calendar.getTime();
                 }
 
+                deathDate = rs.getDate(COL_DEATH_DATE);
+                dead = rs.getString(COL_DEAD);
+
                 // extract identifiers
                 phoneContact = rs.getString(COL_PHONE_NUMBER);
                 alternativePhoneContact = rs.getString(COL_ALTERNATIVE_PHONE_NUMBER);
@@ -862,10 +867,21 @@ public class DbImportUtil {
                 sql = "insert into person (date_created, uuid, creator, gender, birthdate) " +
                         "values (now(), uuid(), ?, ?, ?);";
 
+                if (StringUtils.isNotBlank(dead) && dead.equalsIgnoreCase("Yes") && deathDate != null) {
+                    sql = "insert into person (date_created, uuid, creator, gender, birthdate, dead, death_date, cause_of_death) " +
+                            "values (now(), uuid(), ?, ?, ?, ?, ?, ?);";
+                }
+
                 PreparedStatement insertPerson = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
                 insertPerson.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
                 insertPerson.setString(2, sex);
                 insertPerson.setTimestamp(3, (dob != null && !dob.equals("")) ? new java.sql.Timestamp(dob.getTime()) : null);
+
+                if (StringUtils.isNotBlank(dead) && dead.equalsIgnoreCase("Yes") && deathDate != null) {
+                    insertPerson.setInt(4, 1); // set dead
+                    insertPerson.setTimestamp(5, (deathDate != null && !deathDate.equals("")) ? new java.sql.Timestamp(deathDate.getTime()) : null);
+                    insertPerson.setInt(6, 162574); // set cause of death
+                }
                 insertPerson.executeUpdate();
                 ResultSet returnedPerson = insertPerson.getGeneratedKeys();
                 returnedPerson.next();
@@ -1645,9 +1661,9 @@ public class DbImportUtil {
                                 psObs.setDouble(7, Double.parseDouble(testResult));
                             }
 
-                            psObs.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                            psObs.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                             psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
+                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
                             psObs.setInt(4, orderEncounter);
                             psObs.setInt(5, order);
 
@@ -1948,7 +1964,7 @@ public class DbImportUtil {
                     Integer relationshipType = ((Long) rs.getLong("Relationship")).intValue();
                     Integer openmrsRelationshipType = null;
 
-                    if (relationshipType != null && relationshipType != 0) {
+                    if (relationshipType != null && relationshipType > 0) {
                         if (relationshipType.equals(1527) || relationshipType.equals(971) || relationshipType.equals(970)) {
                             openmrsRelationshipType = relMetadata.getParentChildRelationshipTypeId();
                         } else if (relationshipType.equals(972)) {
@@ -1965,17 +1981,26 @@ public class DbImportUtil {
                     }
 
 
-                    if (personA != null && personA != 0 && personB != null && personB != 0 && openmrsRelationshipType != null && openmrsRelationshipType != 0) {
-                        addRelationshipDetails.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
-                        addRelationshipDetails.setInt(2, personA);
-                        addRelationshipDetails.setInt(3, openmrsRelationshipType);
-                        addRelationshipDetails.setInt(4, personB);
+                    if (personA > 0 && personB > 0 && personA != personB && openmrsRelationshipType > 0) {
+                        // Ensure relationship is saved just once for any two people
+                        Statement countStatement = conn.createStatement();
+                        String countQry = "select count(*) as rowCount from relationship where (person_a=" + personA + " and person_b=" + personB + ") or (person_b=" + personA + " and person_a=" + personB + ")";
+                        ResultSet rsCount = countStatement.executeQuery(countQry);
+                        rsCount.next();
+                        if (rsCount.getInt("rowCount") < 1) {
+                            addRelationshipDetails.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                            addRelationshipDetails.setInt(2, personA);
+                            addRelationshipDetails.setInt(3, openmrsRelationshipType);
+                            addRelationshipDetails.setInt(4, personB);
 
-                        addRelationshipDetails.executeUpdate();
-                        ResultSet rsNewRelationship = addRelationshipDetails.getGeneratedKeys();
-                        rsNewRelationship.next();
-                        rsNewRelationship.close();
-
+                            addRelationshipDetails.executeUpdate();
+                            ResultSet rsNewRelationship = addRelationshipDetails.getGeneratedKeys();
+                            rsNewRelationship.next();
+                            rsNewRelationship.close();
+                        }
+                        rsCount.close();
+                        countStatement.close();
+                        // -----
                     }
                     recordCount++;
                     DbImportUtil.updateMigrationProgressMapProperty("Patient Relationships", "processedCount", String.valueOf(recordCount));
@@ -2078,7 +2103,7 @@ public class DbImportUtil {
                     Integer consent = ((Long) rs.getLong("Consent")).intValue();
                     Date bookingDate = rs.getDate("Booking_Date");
 
-                    if (relationshipType != null && indexClientPatient != null && (firstName !=null || middleName != null || lastName != null)) {
+                    if (relationshipType != null && relationshipType > 0 && indexClientPatient != null && indexClientPatient > 0 && (firstName !=null || middleName != null || lastName != null)) {
                         psInsertContact.setString(1, firstName);
                         psInsertContact.setString(2, middleName);
                         psInsertContact.setString(3, lastName);
@@ -2363,91 +2388,296 @@ public class DbImportUtil {
 
     }
 
-    public static void addOpenMRSId(List<String> messages, String migrationDatabase) {
-        Location defaultLocation = null;
-        System.out.println("Preparing to add OpenMRS ID........");
+    /**
+     * Processes HEI immunization
+     * @param messages
+     * @param migrationDatabase
+     */
+    public static void processHeiImmunizations(List<String> messages, String migrationDatabase) {
 
-        Connection conn = null;
-        Statement s = null;
-        Integer upnIdType = null;
-        Integer natIdIdType = null;
-        Integer iqCarePkType = null;
-        Integer configuredLocationId = null;
+        String MCHCS_IMMUNIZATION_ENCOUNTER = "82169b8d-c945-4c41-be62-433dfd9d6c86";
+        String MCHCS_IMMUNIZATION_FORM = "b4f3859e-861c-4a63-bdff-eb7392030d47";
+
 
         try {
 
-            // Connect to db
-            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            Connection conn = null;
+            Statement s = null;
 
-            Properties p = Context.getRuntimeProperties();
-            String url = p.getProperty("connection.url");
+            try {
 
-            conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
-                    p.getProperty("connection.password"));
-            conn.setAutoCommit(false);
+                Integer vaccineObsGroupConceptId = 1421;
+                Integer vaccineQConceptId = 984;
+                Integer vaccineSeqConceptId = 1418;
+                Integer vaccineDateGivenConceptId = 1410;
 
-            String defaultLocationQuery = "select property_value from global_property where property='kenyaemr.defaultLocation'";
-            PreparedStatement psGetDefaultLocation = conn.prepareStatement(defaultLocationQuery, Statement.RETURN_GENERATED_KEYS);
+                Integer bcgConceptId = 886;
+                Integer opvConceptId = 783;
+                Integer ipvConceptId = 1422;
+                Integer dptConceptId = 781;
+                Integer pcvConceptId = 162342;
+                Integer rotaConceptId = 83531;
+                Integer measlesConceptId = 162586;
+                Integer yellowFeverConceptId = 5864;
+                Integer measlesAt6MonthsConceptId = 36;
 
-            ResultSet rsGetDefaultLocation = psGetDefaultLocation.executeQuery();
-            if (rsGetDefaultLocation.next()) {
-                configuredLocationId = rsGetDefaultLocation.getInt(1);
-                rsGetDefaultLocation.close();
-            }
-            defaultLocation = Context.getLocationService().getLocation(configuredLocationId);
+                // Connect to db
+                Class.forName("com.mysql.jdbc.Driver").newInstance();
 
+                Properties p = Context.getRuntimeProperties();
+                String url = p.getProperty("connection.url");
 
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            if (s != null) {
+                conn = DriverManager.getConnection(url, p.getProperty("connection.username"),
+                        p.getProperty("connection.password"));
+                conn.setAutoCommit(false);
+
+                s = conn.createStatement();
+
+                String query = "select * from :migrationDatabase.:immunizationDataset";
+                query = query.replace(":migrationDatabase", migrationDatabase);
+                query = query.replace(":immunizationDataset", "tr_hei_immunization");
+
+                ResultSet rs = s.executeQuery(query);
+                int recordCount = 0;
+
+                String createEncounterSql = "insert into encounter (date_created, uuid, creator, encounter_datetime, " +
+                        "encounter_type, form_id ,patient_id) " +
+                        "values (?, uuid(), ?, ?, ?, ?, ?);";
+
+                String createGroupingObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, person_id) " +
+                        "values (?, uuid(), ?, ?, ?, ?, ?);";
+
+                String createNumericObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, value_numeric, obs_group_id, person_id) " +
+                        "values (?, uuid(), ?, ?, ?, ?, ?, ?);";
+
+                String createCodedObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, value_coded, obs_group_id, person_id) " +
+                        "values (?, uuid(), ?, ?, ?, ?, ?, ?);";
+
+                PreparedStatement insertEncounter = conn.prepareStatement(createEncounterSql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertNumericObs = conn.prepareStatement(createNumericObsSql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertCodedObs = conn.prepareStatement(createCodedObsSql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertGroupingObs = conn.prepareStatement(createGroupingObsSql, Statement.RETURN_GENERATED_KEYS);
+
+                // get immunization encounter details
+                Integer immunizationEncounterType = null;
+                String qryImmunizationEncId = "select encounter_type_id from encounter_type where uuid='82169b8d-c945-4c41-be62-433dfd9d6c86'";
+                ResultSet rsImmunizationEncId = null;
                 try {
-                    s.close();
-                } catch (Exception e) {
-                }
-            }
-            if (conn != null) {
-                try {
-                    conn.commit();
+                    Statement sGetEncType = conn.createStatement();
+                    rsImmunizationEncId = sGetEncType.executeQuery(qryImmunizationEncId);
+                    if (rsImmunizationEncId.next()) {
+                        immunizationEncounterType = rsImmunizationEncId.getInt(1);
+                        rsImmunizationEncId.close();
+                    }
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
+
+                Integer immunizationFormId = null;
+                String qryImmunizationFormId = "select form_id from form where uuid='b4f3859e-861c-4a63-bdff-eb7392030d47'";
+                ResultSet rsImmunizationFormId = null;
                 try {
-                    conn.close();
-                } catch (Exception e) {
+                    Statement sGetFormId = conn.createStatement();
+                    rsImmunizationFormId = sGetFormId.executeQuery(qryImmunizationFormId);
+                    if (rsImmunizationFormId.next()) {
+                        immunizationFormId = rsImmunizationFormId.getInt(1);
+                        rsImmunizationFormId.close();
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+
+                Integer creator = Context.getAuthenticatedUser().getId();
+                while (rs.next()) {
+
+                    Integer immunizationEncounterId = null;
+                    Integer patientId = ((Long) rs.getLong("patient_id")).intValue();
+                    Date encounterDate = rs.getDate("Encounter_Date");
+                    String bcg = rs.getString("BCG");
+                    Date bcgDate = rs.getDate("BCG_Date");
+
+                    String opv0 = rs.getString("OPV_birth");
+                    Date opv0Date = rs.getDate("OPV_Birth_Date");
+                    String opv1 = rs.getString("OPV_1");
+                    Date opv1Date = rs.getDate("OPV_1_Date");
+                    String opv2 = rs.getString("OPV_2");
+                    Date opv2Date = rs.getDate("OPV_2_Date");
+                    String opv3 = rs.getString("OPV_3");
+                    Date opv3Date = rs.getDate("OPV_3_Date");
+
+                    insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
+                    insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                    insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                    insertEncounter.setInt(4, immunizationEncounterType); // set encounter type to lab test
+                    insertEncounter.setInt(5, immunizationFormId); // set encounter type to lab test
+                    insertEncounter.setInt(6, patientId); // set patient id
+                    insertEncounter.executeUpdate();
+                    ResultSet rsNewEncounter = insertEncounter.getGeneratedKeys();
+                    rsNewEncounter.next();
+                    immunizationEncounterId = rsNewEncounter.getInt(1);
+                    rsNewEncounter.close();
+
+                    // add bcg vaccine
+                    if (StringUtils.isNotBlank(bcg) && bcgDate != null) {
+                        Integer bcgGroupingObs = null;
+                        PreparedStatement psBcg = buildObsGroupPreparedStatement(insertGroupingObs, patientId, encounterDate, bcgDate, vaccineObsGroupConceptId, immunizationEncounterId, creator);
+                        /*insertGroupingObs.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
+                        insertGroupingObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                        insertGroupingObs.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                        insertGroupingObs.setInt(4, immunizationEncounterId); // set encounter type to lab test
+                        insertGroupingObs.setInt(5, vaccineObsGroupConceptId); // set encounter type to lab test
+                        insertGroupingObs.setInt(6, patientId); // set patient id*/
+                        psBcg.executeUpdate();
+                        ResultSet rsBcgObsGroup = psBcg.getGeneratedKeys();
+                        rsBcgObsGroup.next();
+                        bcgGroupingObs = rsBcgObsGroup.getInt(1);
+                        rsBcgObsGroup.close();
+
+                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineQConceptId, bcgConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineSeqConceptId, null, 1, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineDateGivenConceptId, null, null, bcgDate, creator);
+                    }
+
+                    // add opv at birth vaccine
+                    if (StringUtils.isNotBlank(opv0) && opv0Date != null) {
+                        Integer opv0GroupingObs = null;
+                        PreparedStatement psOpv0 = buildObsGroupPreparedStatement(insertGroupingObs, patientId, encounterDate, opv0Date, vaccineObsGroupConceptId, immunizationEncounterId, creator);
+                        psOpv0.executeUpdate();
+                        ResultSet rsOpv0ObsGroup = psOpv0.getGeneratedKeys();
+                        rsOpv0ObsGroup.next();
+                        opv0GroupingObs = rsOpv0ObsGroup.getInt(1);
+                        rsOpv0ObsGroup.close();
+
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineSeqConceptId, null, 0, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineDateGivenConceptId, null, null, opv0Date, creator);
+                    }
+
+                    // add opv 1 vaccine
+                    if (StringUtils.isNotBlank(opv1) && opv1Date != null) {
+                        Integer opv1GroupingObs = null;
+                        PreparedStatement psOpv1 = buildObsGroupPreparedStatement(insertGroupingObs, patientId, encounterDate, opv1Date, vaccineObsGroupConceptId, immunizationEncounterId, creator);
+                        psOpv1.executeUpdate();
+                        ResultSet rsOpv1ObsGroup = psOpv1.getGeneratedKeys();
+                        rsOpv1ObsGroup.next();
+                        opv1GroupingObs = rsOpv1ObsGroup.getInt(1);
+                        rsOpv1ObsGroup.close();
+
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineSeqConceptId, null, 1, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineDateGivenConceptId, null, null, opv1Date, creator);
+                    }
+
+                    // add opv 2 vaccine
+                    if (StringUtils.isNotBlank(opv2) && opv2Date != null) {
+                        Integer opv2GroupingObs = null;
+                        PreparedStatement psOpv2 = buildObsGroupPreparedStatement(insertGroupingObs, patientId, encounterDate, opv2Date, vaccineObsGroupConceptId, immunizationEncounterId, creator);
+                        psOpv2.executeUpdate();
+                        ResultSet rsOpv2ObsGroup = psOpv2.getGeneratedKeys();
+                        rsOpv2ObsGroup.next();
+                        opv2GroupingObs = rsOpv2ObsGroup.getInt(1);
+                        rsOpv2ObsGroup.close();
+
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineSeqConceptId, null, 2, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineDateGivenConceptId, null, null, opv2Date, creator);
+                    }
+
+                    // add opv 3 vaccine
+                    if (StringUtils.isNotBlank(opv3) && opv3Date != null) {
+                        Integer opv3GroupingObs = null;
+                        PreparedStatement psOpv3 = buildObsGroupPreparedStatement(insertGroupingObs, patientId, encounterDate, opv3Date, vaccineObsGroupConceptId, immunizationEncounterId, creator);
+                        psOpv3.executeUpdate();
+                        ResultSet rsOpv3ObsGroup = psOpv3.getGeneratedKeys();
+                        rsOpv3ObsGroup.next();
+                        opv3GroupingObs = rsOpv3ObsGroup.getInt(1);
+                        rsOpv3ObsGroup.close();
+
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineSeqConceptId, null, 3, null, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineDateGivenConceptId, null, null, opv3Date, creator);
+                    }
+                    // --------------
+
+                    recordCount++;
+                    DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(recordCount));
+                }
+
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } finally {
+                if (s != null) {
+                    try {
+                        s.close();
+                    } catch (Exception e) {
+                    }
+                }
+                if (conn != null) {
+                    try {
+                        conn.commit();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        conn.close();
+                    } catch (Exception e) {
+                    }
                 }
             }
+            return ;
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        int recordCount = 0;
-        for (Patient patient : Context.getPatientService().getAllPatients()) {
-            if (patient.getPatientId() < 18500) {
-                continue;
-            }
-            recordCount++;
-            System.out.println("Processing patient ID........" + patient.getPatientId());
-
-            // add OpenMRS ID
-            PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
-            openMRSID.setPreferred(true);
-            patient.addIdentifier(openMRSID);
-            Context.getPatientService().savePatient(patient);
-            if (recordCount%200==0) {
-                Context.flushSession();
-                //Context.clearSession();
-            }
-
-
-        }
-        System.out.println("Completed adding OpenMRS ID........");
-
+        return ;
     }
+
+    private static PreparedStatement buildObsPreparedStatement(PreparedStatement psObs, Integer patientId, Integer groupingObsId, Integer encounterId, Date vaccinationDate, Date dateCreated, Integer conceptQuestion, Integer codedAnswer, Integer numericAnswer, Date dateAnswer, Integer creator) {
+
+        try {
+            psObs.setTimestamp(1, new java.sql.Timestamp(dateCreated.getTime())); // set date created
+            psObs.setInt(2, creator); // set creator
+            psObs.setTimestamp(3, new java.sql.Timestamp(vaccinationDate.getTime())); // set date created
+            psObs.setInt(4, encounterId);// encounter_id
+            psObs.setInt(5, conceptQuestion);
+            if (codedAnswer != null) {
+                psObs.setInt(6, codedAnswer);
+            } else if (numericAnswer != null) {
+                psObs.setDouble(6, numericAnswer);
+            } else if (dateAnswer != null) {
+                psObs.setTimestamp(6, new java.sql.Timestamp(vaccinationDate.getTime()));
+            }
+            psObs.setInt(7, groupingObsId);
+            psObs.setInt(8, patientId);
+            psObs.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return psObs;
+    }
+
+    private static PreparedStatement buildObsGroupPreparedStatement(PreparedStatement insertGroupingObs, Integer patientId, Date encounterDate, Date dateCreated, Integer conceptQuestion, Integer encounterId, Integer creator) {
+
+        try {
+            insertGroupingObs.setTimestamp(1, new java.sql.Timestamp(dateCreated.getTime())); // set date created
+            insertGroupingObs.setInt(2, creator); // set creator
+            insertGroupingObs.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+            insertGroupingObs.setInt(4, encounterId); // set encounter type to lab test
+            insertGroupingObs.setInt(5, conceptQuestion); // set encounter type to lab test
+            insertGroupingObs.setInt(6, patientId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return insertGroupingObs;
+    }
+
+
 /*    protected boolean validatePatientIdentifier(String identifier) {
         String pitId = getPrespecifiedPatientIdentifierTypeIdFromPatientIdentifierColumn(piColumn);
         if (pitId == null)
