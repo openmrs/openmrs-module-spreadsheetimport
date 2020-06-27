@@ -988,7 +988,7 @@ public class DbImportUtil {
                 }
 
                 if (StringUtils.isNotBlank(nextOfKin)) {
-                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinNameId() + ", '" + nextOfKin + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinNameId() + ", '" + nextOfKin.replace("'", "''") + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
                     personAttributeSt.addBatch(sql);
                 }
 
@@ -998,12 +998,12 @@ public class DbImportUtil {
                 }
 
                 if (StringUtils.isNotBlank(nextOfKinAddress)) {
-                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinAddressId() + ", '" + nextOfKinAddress + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinAddressId() + ", '" + nextOfKinAddress.replace("'", "''") + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
                     personAttributeSt.addBatch(sql);
                 }
 
                 if (StringUtils.isNotBlank(nextOfKinRelationship)) {
-                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinRelationshipId() + ", '" + nextOfKinRelationship + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
+                    sql = "insert into person_attribute (person_id, person_attribute_type_id, value, creator, date_created, uuid) values (" + patientId.intValue() + ", " + registrationMetadata.getNextOfKinRelationshipId() + ", '" + nextOfKinRelationship.replace("'", "''") + "', " + Context.getAuthenticatedUser().getId() + ", now(), uuid()" + ")";
                     personAttributeSt.addBatch(sql);
                 }
 
