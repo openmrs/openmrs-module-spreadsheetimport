@@ -1488,9 +1488,9 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                                 insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
                                 insertEncounter.executeUpdate();
@@ -1514,9 +1514,9 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                                 insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
                                 insertEncounter.executeUpdate();
@@ -1559,7 +1559,7 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                                 insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
@@ -1575,11 +1575,11 @@ public class DbImportUtil {
                                 insertDiscOrder.setInt(7, orderReason); // set order reason
                                 insertDiscOrder.setString(8, "ROUTINE"); // set order urgency
                                 insertDiscOrder.setString(9, "DISCONTINUE"); // set order action
-                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
+                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestResultReceived.getTime())); // set date requested
                                 insertDiscOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
                                 insertDiscOrder.setString(12, discOrderNumber);
                                 insertDiscOrder.setInt(13, patientId);
-                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestRequested.getTime()));
+                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestResultReceived.getTime()));
                                 insertDiscOrder.setInt(15, order);
                                 insertDiscOrder.executeUpdate();
 
@@ -1613,7 +1613,7 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                                 insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
@@ -1625,11 +1625,11 @@ public class DbImportUtil {
                                 insertDiscOrder.setInt(7, orderReason); // set order reason
                                 insertDiscOrder.setString(8, "ROUTINE"); // set order urgency
                                 insertDiscOrder.setString(9, "DISCONTINUE"); // set order action
-                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
+                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestResultReceived.getTime())); // set date requested
                                 insertDiscOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
                                 insertDiscOrder.setString(12, discOrderNumber);
                                 insertDiscOrder.setInt(13, patientId);
-                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestRequested.getTime()));
+                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestResultReceived.getTime()));
                                 insertDiscOrder.setInt(15, order);
                                 insertDiscOrder.executeUpdate();
 
@@ -1663,7 +1663,7 @@ public class DbImportUtil {
 
                             psObs.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                             psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                             psObs.setInt(4, orderEncounter);
                             psObs.setInt(5, order);
 
