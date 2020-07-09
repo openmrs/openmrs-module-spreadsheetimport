@@ -1663,7 +1663,7 @@ public class DbImportUtil {
 
                             psObs.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
                             psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
+                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set obs_datetime
                             psObs.setInt(4, orderEncounter);
                             psObs.setInt(5, order);
 
