@@ -55,7 +55,7 @@ public class DWRMigrationService {
 		DbImportUtil.processViralLoadAndCD4Labs(messages, migrationDatabase);
 		DbImportUtil.processPatientRelationships(messages, migrationDatabase);
 		DbImportUtil.processPatientContactLists(messages, migrationDatabase);
-		//DbImportUtil.processHeiImmunizations(messages, migrationDatabase);
+		DbImportUtil.processHeiImmunizations(messages, migrationDatabase);
 		DbImportUtil.updateEncounterLocation(messages, migrationDatabase);
 
 		long endTime = System.nanoTime();
