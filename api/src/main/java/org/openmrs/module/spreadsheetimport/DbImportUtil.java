@@ -2274,7 +2274,7 @@ public class DbImportUtil {
             DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(0));
             rsHtsContacts.close();
 
-            String immunizationQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            /*String immunizationQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
             immunizationQuery = immunizationQuery.replace(":migrationDatabase", migrationDatabase);
             immunizationQuery = immunizationQuery.replace(":tableName", heiImmunizationTableName);
 
@@ -2282,7 +2282,7 @@ public class DbImportUtil {
             rsImmunization.next();
             DbImportUtil.updateMigrationProgressMapProperty("HEI Immunization", "totalRowCount", String.valueOf(rsImmunization.getInt("rowCount")));
             DbImportUtil.updateMigrationProgressMapProperty("HEI Immunization", "processedCount", String.valueOf(0));
-            rsImmunization.close();
+            rsImmunization.close();*/
 
         } catch (SQLException e) {
             e.printStackTrace();
