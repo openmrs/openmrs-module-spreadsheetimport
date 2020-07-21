@@ -356,8 +356,10 @@ public class DbImportUtil {
             do {
 
                 boolean rowHasData = false;
-                // attempt to process the extra encounter_datetime
+                // attempt to process the extra encounter_datetime, creator, and date_created
                 String encounterDateColumn = "Encounter_Date";
+                String creatorColumn = "Created_by";
+                String dateCreatedColumn = "Create_date";
                 String mainIdentifierColumn = "Person_Id";
                 String internalIdColumn = "patient_id";
                 String patientIdColVal = rs.getString(mainIdentifierColumn);
@@ -365,17 +367,39 @@ public class DbImportUtil {
                 String patientId = rs.getString(internalIdColumn);
 
                 String rowEncDate = null;
+                String rowDateCreated = null;
+                Integer rowCreator = null;
                 Integer rPersonId = null;
                 int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
+                int creatorColumnIdx = columnNames.indexOf(creatorColumn);
+                int dateCreatedColumnIdx = columnNames.indexOf(dateCreatedColumn);
 
 
                 if (encDateColumnIdx >= 0) {
                     if (rs.getDate(encounterDateColumn) != null) {
                         java.util.Date encDate = rs.getDate(encounterDateColumn);
-                        rowEncDate = DATE_FORMAT.format(encDate);// "'" + new java.sql.Timestamp(encDate.getTime()).toString() + "'";
+                        rowEncDate = DATE_FORMAT.format(encDate);
 
                     }
 
+                }
+
+                if (dateCreatedColumnIdx >= 0 && rs.getDate(dateCreatedColumn) != null) {
+                        java.util.Date createdDate = rs.getDate(dateCreatedColumn);
+                        rowDateCreated = DATE_FORMAT.format(createdDate);
+                } else {
+                    rowDateCreated = rowEncDate;// set this to the encounter date
+                }
+
+                // set creator if exists. Default to the authenticated user - super user at migration
+                if (creatorColumnIdx >= 0 && StringUtils.isNotBlank(rs.getString(creatorColumn))) {
+                        String rowCreatorStr = rs.getString(creatorColumn);
+                        rowCreator = Integer.parseInt(rowCreatorStr);
+                    if (rowCreator == 0) {
+                        rowCreator =1;
+                    }
+                } else {
+                    rowCreator = Context.getAuthenticatedUser().getId();
                 }
 
                 Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData = template
@@ -570,7 +594,7 @@ public class DbImportUtil {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
-                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn);
+                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn, rowCreator, rowDateCreated);
 
 
                     /*if (recordCount == 1) {
@@ -1477,6 +1501,32 @@ public class DbImportUtil {
                     Date dateTestRequested = rs.getDate("Date_test_requested");
                     Date dateTestResultReceived = rs.getDate("Date_test_result_received");
 
+                    String creatorColumn = "Created_by";
+                    String dateCreatedColumn = "Create_date";
+
+                    Date rowDateCreated = null;
+                    Integer rowCreator = null;
+
+
+
+                    if (rs.getDate(dateCreatedColumn) != null) {
+                        rowDateCreated = rs.getDate(dateCreatedColumn);
+                        //rowDateCreated = DATE_FORMAT.format(createdDate);
+                    }/* else {
+                        rowDateCreated = rowEncDate;// set this to the encounter date
+                    }*/
+
+                    // set creator if exists. Default to the authenticated user - super user at migration
+                    if (StringUtils.isNotBlank(rs.getString(creatorColumn))) {
+                        String rowCreatorStr = rs.getString(creatorColumn);
+                        rowCreator = Integer.parseInt(rowCreatorStr);
+                        if (rowCreator == 0) {
+                           rowCreator =1;
+                        }
+                    } else {
+                        rowCreator = Context.getAuthenticatedUser().getId();
+                    }
+
                     Integer order = null;
                     Integer discOrder = null;
                     // SQL NULL is returned as 0
@@ -1493,8 +1543,8 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
                                 insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
@@ -1506,8 +1556,8 @@ public class DbImportUtil {
 
                             } else {
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
                                 insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
@@ -1519,8 +1569,8 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
                                 insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
@@ -1534,8 +1584,8 @@ public class DbImportUtil {
                             // create new order
 
                             if (StringUtils.isNotBlank(testResult) && labTest.equals(LabOrderDetails.HIV_VIRAL_LOAD)) {
-                                insertOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertOrder.setInt(2, rowCreator); // set creator
                                 insertOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id
@@ -1564,8 +1614,8 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                                insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertDiscOrder.setInt(2, rowCreator); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id
@@ -1593,8 +1643,8 @@ public class DbImportUtil {
                                 discOrder = rsDiscOrder.getInt(1);
                                 rsDiscOrder.close();
                             } else if (StringUtils.isNotBlank(testResult) && (labTest.equals(LabOrderDetails.CD4_COUNT) || labTest.equals(LabOrderDetails.CD4_PERCENT))){
-                                insertOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertOrder.setInt(2, rowCreator); // set creator
                                 insertOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id. should translate to CD4 or CD4 percent
@@ -1618,8 +1668,8 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                                insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertDiscOrder.setInt(2, rowCreator); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id. should translate to CD4 or CD4 percent
@@ -1666,8 +1716,8 @@ public class DbImportUtil {
                                 psObs.setDouble(7, Double.parseDouble(testResult));
                             }
 
-                            psObs.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                            psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                            psObs.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                            psObs.setInt(2, rowCreator); // set creator
                             psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set obs_datetime
                             psObs.setInt(4, orderEncounter);
                             psObs.setInt(5, order);
