@@ -356,8 +356,10 @@ public class DbImportUtil {
             do {
 
                 boolean rowHasData = false;
-                // attempt to process the extra encounter_datetime
+                // attempt to process the extra encounter_datetime, creator, and date_created
                 String encounterDateColumn = "Encounter_Date";
+                String creatorColumn = "Created_by";
+                String dateCreatedColumn = "Create_date";
                 String mainIdentifierColumn = "Person_Id";
                 String internalIdColumn = "patient_id";
                 String patientIdColVal = rs.getString(mainIdentifierColumn);
@@ -365,17 +367,39 @@ public class DbImportUtil {
                 String patientId = rs.getString(internalIdColumn);
 
                 String rowEncDate = null;
+                String rowDateCreated = null;
+                Integer rowCreator = null;
                 Integer rPersonId = null;
                 int encDateColumnIdx = columnNames.indexOf(encounterDateColumn);
+                int creatorColumnIdx = columnNames.indexOf(creatorColumn);
+                int dateCreatedColumnIdx = columnNames.indexOf(dateCreatedColumn);
 
 
                 if (encDateColumnIdx >= 0) {
                     if (rs.getDate(encounterDateColumn) != null) {
                         java.util.Date encDate = rs.getDate(encounterDateColumn);
-                        rowEncDate = DATE_FORMAT.format(encDate);// "'" + new java.sql.Timestamp(encDate.getTime()).toString() + "'";
+                        rowEncDate = DATE_FORMAT.format(encDate);
 
                     }
 
+                }
+
+                if (dateCreatedColumnIdx >= 0 && rs.getDate(dateCreatedColumn) != null) {
+                        java.util.Date createdDate = rs.getDate(dateCreatedColumn);
+                        rowDateCreated = DATE_FORMAT.format(createdDate);
+                } else {
+                    rowDateCreated = rowEncDate;// set this to the encounter date
+                }
+
+                // set creator if exists. Default to the authenticated user - super user at migration
+                if (creatorColumnIdx >= 0 && StringUtils.isNotBlank(rs.getString(creatorColumn))) {
+                        String rowCreatorStr = rs.getString(creatorColumn);
+                        rowCreator = Integer.parseInt(rowCreatorStr);
+                    if (rowCreator == 0) {
+                        rowCreator =1;
+                    }
+                } else {
+                    rowCreator = Context.getAuthenticatedUser().getId();
                 }
 
                 Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData = template
@@ -570,7 +594,7 @@ public class DbImportUtil {
                     Exception exception = null;
                     try {
                         //DatabaseBackend.validateData(rowData);
-                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn);
+                        String encounterId = DatabaseBackend.importData(rowData, rowEncDate, patientId, repeatingList, rollbackTransaction, conn, rowCreator, rowDateCreated);
 
 
                     /*if (recordCount == 1) {
@@ -939,8 +963,12 @@ public class DbImportUtil {
                 sql = "insert into patient_identifier " +
                         "(date_created, uuid, location_id, creator,patient_id, identifier_type, identifier) " +
                         "values (now(),uuid(), NULL,?,?,?,?);";
+                String sqlPreferredId = "insert into patient_identifier " +
+                        "(date_created, uuid, creator,patient_id, identifier_type, identifier, preferred, location_id) " +
+                        "values (now(),uuid(),?,?,?,?,1, ?);";
 
                 PreparedStatement insertIdentifierStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertPreferredIdentifierStatement = conn.prepareStatement(sqlPreferredId, Statement.RETURN_GENERATED_KEYS);
 
                 for (String idType : identifierTypeList) {
                     String colName = null;
@@ -1023,20 +1051,19 @@ public class DbImportUtil {
                 }
                 personAttributeSt.executeBatch();
 
-
-
-
                 personAttributeSt.close();
 
                 PatientIdentifier openMRSID = generateOpenMRSID(defaultLocation);
 
-                insertIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
-                insertIdentifierStatement.setInt(2, patientId.intValue()); // set person id
-                insertIdentifierStatement.setInt(3, openMRSIdType.intValue());
-                insertIdentifierStatement.setString(4, openMRSID.getIdentifier());
+                insertPreferredIdentifierStatement.setInt(1, Context.getAuthenticatedUser().getId()); // set creator
+                insertPreferredIdentifierStatement.setInt(2, patientId.intValue()); // set person id
+                insertPreferredIdentifierStatement.setInt(3, openMRSIdType.intValue());
+                insertPreferredIdentifierStatement.setString(4, openMRSID.getIdentifier());
+                insertPreferredIdentifierStatement.setInt(5, defaultLocation.getLocationId());
 
-                insertIdentifierStatement.executeUpdate();
-                ResultSet returnedId = insertIdentifierStatement.getGeneratedKeys();
+
+                insertPreferredIdentifierStatement.executeUpdate();
+                ResultSet returnedId = insertPreferredIdentifierStatement.getGeneratedKeys();
                 returnedId.next();
                 returnedId.close();
                 recordCount++;
@@ -1384,6 +1411,8 @@ public class DbImportUtil {
 
         try {
 
+            System.out.println("Processing VL and CD4 datasets ..............");
+
             Connection conn = null;
             Statement s = null;
 
@@ -1472,6 +1501,32 @@ public class DbImportUtil {
                     Date dateTestRequested = rs.getDate("Date_test_requested");
                     Date dateTestResultReceived = rs.getDate("Date_test_result_received");
 
+                    String creatorColumn = "Created_by";
+                    String dateCreatedColumn = "Create_date";
+
+                    Date rowDateCreated = null;
+                    Integer rowCreator = null;
+
+
+
+                    if (rs.getDate(dateCreatedColumn) != null) {
+                        rowDateCreated = rs.getDate(dateCreatedColumn);
+                        //rowDateCreated = DATE_FORMAT.format(createdDate);
+                    }/* else {
+                        rowDateCreated = rowEncDate;// set this to the encounter date
+                    }*/
+
+                    // set creator if exists. Default to the authenticated user - super user at migration
+                    if (StringUtils.isNotBlank(rs.getString(creatorColumn))) {
+                        String rowCreatorStr = rs.getString(creatorColumn);
+                        rowCreator = Integer.parseInt(rowCreatorStr);
+                        if (rowCreator == 0) {
+                           rowCreator =1;
+                        }
+                    } else {
+                        rowCreator = Context.getAuthenticatedUser().getId();
+                    }
+
                     Integer order = null;
                     Integer discOrder = null;
                     // SQL NULL is returned as 0
@@ -1488,9 +1543,9 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
+                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
                                 insertEncounter.executeUpdate();
@@ -1501,8 +1556,8 @@ public class DbImportUtil {
 
                             } else {
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
                                 insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
@@ -1514,9 +1569,9 @@ public class DbImportUtil {
 
                                 // add discontinuation enc
 
-                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(encounterDate.getTime())); // set date created
-                                insertEncounter.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(encounterDate.getTime()));
+                                insertEncounter.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertEncounter.setInt(2, rowCreator); // set creator
+                                insertEncounter.setTimestamp(3, new java.sql.Timestamp(dateTestResultReceived.getTime()));
                                 insertEncounter.setInt(4, labMetadata.getEncounterTypeId()); // set encounter type to lab test
                                 insertEncounter.setInt(5, patientId); // set patient id
                                 insertEncounter.executeUpdate();
@@ -1529,8 +1584,8 @@ public class DbImportUtil {
                             // create new order
 
                             if (StringUtils.isNotBlank(testResult) && labTest.equals(LabOrderDetails.HIV_VIRAL_LOAD)) {
-                                insertOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertOrder.setInt(2, rowCreator); // set creator
                                 insertOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id
@@ -1549,7 +1604,7 @@ public class DbImportUtil {
                                 insertOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
                                 insertOrder.setString(12, orderNumber);
                                 insertOrder.setInt(13, patientId);
-                                insertOrder.setDate(14, new java.sql.Date(dateTestRequested.getTime()));
+                                insertOrder.setDate(14, new java.sql.Date(dateTestResultReceived.getTime()));
                                 insertOrder.executeUpdate();
 
                                 ResultSet rsNewOrder = insertOrder.getGeneratedKeys();
@@ -1559,8 +1614,8 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertDiscOrder.setInt(2, rowCreator); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id
@@ -1575,11 +1630,11 @@ public class DbImportUtil {
                                 insertDiscOrder.setInt(7, orderReason); // set order reason
                                 insertDiscOrder.setString(8, "ROUTINE"); // set order urgency
                                 insertDiscOrder.setString(9, "DISCONTINUE"); // set order action
-                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
+                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestResultReceived.getTime())); // set date requested
                                 insertDiscOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
                                 insertDiscOrder.setString(12, discOrderNumber);
                                 insertDiscOrder.setInt(13, patientId);
-                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestRequested.getTime()));
+                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestResultReceived.getTime()));
                                 insertDiscOrder.setInt(15, order);
                                 insertDiscOrder.executeUpdate();
 
@@ -1588,8 +1643,8 @@ public class DbImportUtil {
                                 discOrder = rsDiscOrder.getInt(1);
                                 rsDiscOrder.close();
                             } else if (StringUtils.isNotBlank(testResult) && (labTest.equals(LabOrderDetails.CD4_COUNT) || labTest.equals(LabOrderDetails.CD4_PERCENT))){
-                                insertOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertOrder.setInt(2, rowCreator); // set creator
                                 insertOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id. should translate to CD4 or CD4 percent
@@ -1613,8 +1668,8 @@ public class DbImportUtil {
 
                                 // add discontinuation order
 
-                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
-                                insertDiscOrder.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
+                                insertDiscOrder.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                                insertDiscOrder.setInt(2, rowCreator); // set creator
                                 insertDiscOrder.setInt(3, labMetadata.getOrderTypeId()); //
 
                                 // assign appropriate concept id. should translate to CD4 or CD4 percent
@@ -1625,11 +1680,11 @@ public class DbImportUtil {
                                 insertDiscOrder.setInt(7, orderReason); // set order reason
                                 insertDiscOrder.setString(8, "ROUTINE"); // set order urgency
                                 insertDiscOrder.setString(9, "DISCONTINUE"); // set order action
-                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestRequested.getTime())); // set date requested
+                                insertDiscOrder.setDate(10, new java.sql.Date(dateTestResultReceived.getTime())); // set date requested
                                 insertDiscOrder.setInt(11, labMetadata.getCareSettingId()); // set care setting
                                 insertDiscOrder.setString(12, discOrderNumber);
                                 insertDiscOrder.setInt(13, patientId);
-                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestRequested.getTime()));
+                                insertDiscOrder.setDate(14, new java.sql.Date(dateTestResultReceived.getTime()));
                                 insertDiscOrder.setInt(15, order);
                                 insertDiscOrder.executeUpdate();
 
@@ -1661,9 +1716,9 @@ public class DbImportUtil {
                                 psObs.setDouble(7, Double.parseDouble(testResult));
                             }
 
-                            psObs.setTimestamp(1, new java.sql.Timestamp(dateTestResultReceived.getTime())); // set date created
-                            psObs.setInt(2, Context.getAuthenticatedUser().getId()); // set creator
-                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set date created
+                            psObs.setTimestamp(1, new java.sql.Timestamp(rowDateCreated.getTime())); // set date created
+                            psObs.setInt(2, rowCreator); // set creator
+                            psObs.setTimestamp(3, new java.sql.Timestamp(dateTestRequested.getTime())); // set obs_datetime
                             psObs.setInt(4, orderEncounter);
                             psObs.setInt(5, order);
 
@@ -1713,6 +1768,8 @@ public class DbImportUtil {
                     }
                 }
             }
+
+            System.out.println("Completed processing VL and CD4 datasets ..............");
 
             return "Success";
 
@@ -1925,7 +1982,7 @@ public class DbImportUtil {
     public static String processPatientRelationships(List<String> messages, String migrationDatabase) {
 
         try {
-
+            System.out.println("Processing patient relationship datasets ..............");
             Connection conn = null;
             Statement s = null;
 
@@ -2033,6 +2090,7 @@ public class DbImportUtil {
                     }
                 }
             }
+            System.out.println("Completed processing patient relationship dataset ..............");
             return "Success";
 
         } catch (Exception e) {
@@ -2051,6 +2109,7 @@ public class DbImportUtil {
 
         try {
 
+            System.out.println("Processing HTS contact list dataset ..............");
             Connection conn = null;
             Statement s = null;
 
@@ -2158,6 +2217,8 @@ public class DbImportUtil {
                     }
                 }
             }
+            System.out.println("Completed processing HTS contact list dataset ..............");
+
             return "Success";
 
         } catch (Exception e) {
@@ -2180,6 +2241,7 @@ public class DbImportUtil {
         String usersTableName = "tr_users";
         String relationshipTableName = "tr_person_relationship";
         String htsContactsTableName = "tr_hts_contact_listing";
+        String heiImmunizationTableName = "tr_hei_immunization";
 
         try {
             Map<String, Integer> templateMap = getTemplateDatasetMap();
@@ -2261,6 +2323,16 @@ public class DbImportUtil {
             DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "totalRowCount", String.valueOf(rsHtsContacts.getInt("rowCount")));
             DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(0));
             rsHtsContacts.close();
+
+            /*String immunizationQuery = "select count(*) as rowCount from :migrationDatabase.:tableName";
+            immunizationQuery = immunizationQuery.replace(":migrationDatabase", migrationDatabase);
+            immunizationQuery = immunizationQuery.replace(":tableName", heiImmunizationTableName);
+
+            ResultSet rsImmunization = s.executeQuery(immunizationQuery);
+            rsImmunization.next();
+            DbImportUtil.updateMigrationProgressMapProperty("HEI Immunization", "totalRowCount", String.valueOf(rsImmunization.getInt("rowCount")));
+            DbImportUtil.updateMigrationProgressMapProperty("HEI Immunization", "processedCount", String.valueOf(0));
+            rsImmunization.close();*/
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -2370,6 +2442,7 @@ public class DbImportUtil {
         PatientIdentifierType openmrsIDType = Context.getPatientService().getPatientIdentifierTypeByUuid("dfacd928-0370-4315-99d7-6ec1c9f7ae76");
         String generated = Context.getService(IdentifierSourceService.class).generateIdentifier(openmrsIDType, "Registration");
         PatientIdentifier identifier = new PatientIdentifier(generated, openmrsIDType, defaultLocation);
+        identifier.setPreferred(true);
         return identifier;
     }
 
@@ -2400,6 +2473,7 @@ public class DbImportUtil {
 
 
         try {
+            System.out.println("Processing HEI immunization dataset ..............");
 
             Connection conn = null;
             Statement s = null;
@@ -2448,14 +2522,17 @@ public class DbImportUtil {
                         "values (?, uuid(), ?, ?, ?, ?, ?);";
 
                 String createNumericObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, value_numeric, obs_group_id, person_id) " +
-                        "values (?, uuid(), ?, ?, ?, ?, ?, ?);";
+                        "values (?, uuid(), ?, ?, ?, ?, ?, ?, ?);";
 
                 String createCodedObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, value_coded, obs_group_id, person_id) " +
-                        "values (?, uuid(), ?, ?, ?, ?, ?, ?);";
+                        "values (?, uuid(), ?, ?, ?, ?, ?, ?, ?);";
+                String createDatetimeObsSql = "insert into obs (date_created, uuid, creator, obs_datetime, encounter_id, concept_id, value_datetime, obs_group_id, person_id) " +
+                        "values (?, uuid(), ?, ?, ?, ?, ?, ?, ?);";
 
                 PreparedStatement insertEncounter = conn.prepareStatement(createEncounterSql, Statement.RETURN_GENERATED_KEYS);
                 PreparedStatement insertNumericObs = conn.prepareStatement(createNumericObsSql, Statement.RETURN_GENERATED_KEYS);
                 PreparedStatement insertCodedObs = conn.prepareStatement(createCodedObsSql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement insertDatetimeObs = conn.prepareStatement(createDatetimeObsSql, Statement.RETURN_GENERATED_KEYS);
                 PreparedStatement insertGroupingObs = conn.prepareStatement(createGroupingObsSql, Statement.RETURN_GENERATED_KEYS);
 
                 // get immunization encounter details
@@ -2533,9 +2610,9 @@ public class DbImportUtil {
                         bcgGroupingObs = rsBcgObsGroup.getInt(1);
                         rsBcgObsGroup.close();
 
-                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineQConceptId, bcgConceptId, null, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineSeqConceptId, null, 1, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, bcgDate, bcgDate, vaccineDateGivenConceptId, null, null, bcgDate, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, bcgGroupingObs, immunizationEncounterId, encounterDate, bcgDate, vaccineQConceptId, bcgConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertNumericObs, patientId, bcgGroupingObs, immunizationEncounterId, encounterDate, bcgDate, vaccineSeqConceptId, null, 1, null, creator);
+                        buildObsPreparedStatement(insertDatetimeObs, patientId, bcgGroupingObs, immunizationEncounterId, encounterDate, bcgDate, vaccineDateGivenConceptId, null, null, bcgDate, creator);
                     }
 
                     // add opv at birth vaccine
@@ -2548,9 +2625,9 @@ public class DbImportUtil {
                         opv0GroupingObs = rsOpv0ObsGroup.getInt(1);
                         rsOpv0ObsGroup.close();
 
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineQConceptId, opvConceptId, null, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineSeqConceptId, null, 0, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, opv0Date, opv0Date, vaccineDateGivenConceptId, null, null, opv0Date, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv0GroupingObs, immunizationEncounterId, encounterDate, opv0Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertNumericObs, patientId, opv0GroupingObs, immunizationEncounterId, encounterDate, opv0Date, vaccineSeqConceptId, null, 0, null, creator);
+                        buildObsPreparedStatement(insertDatetimeObs, patientId, opv0GroupingObs, immunizationEncounterId, encounterDate, opv0Date, vaccineDateGivenConceptId, null, null, opv0Date, creator);
                     }
 
                     // add opv 1 vaccine
@@ -2563,9 +2640,9 @@ public class DbImportUtil {
                         opv1GroupingObs = rsOpv1ObsGroup.getInt(1);
                         rsOpv1ObsGroup.close();
 
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineQConceptId, opvConceptId, null, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineSeqConceptId, null, 1, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, opv1Date, opv1Date, vaccineDateGivenConceptId, null, null, opv1Date, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv1GroupingObs, immunizationEncounterId, encounterDate, opv1Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertNumericObs, patientId, opv1GroupingObs, immunizationEncounterId, encounterDate, opv1Date, vaccineSeqConceptId, null, 1, null, creator);
+                        buildObsPreparedStatement(insertDatetimeObs, patientId, opv1GroupingObs, immunizationEncounterId, encounterDate, opv1Date, vaccineDateGivenConceptId, null, null, opv1Date, creator);
                     }
 
                     // add opv 2 vaccine
@@ -2578,9 +2655,9 @@ public class DbImportUtil {
                         opv2GroupingObs = rsOpv2ObsGroup.getInt(1);
                         rsOpv2ObsGroup.close();
 
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineQConceptId, opvConceptId, null, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineSeqConceptId, null, 2, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, opv2Date, opv2Date, vaccineDateGivenConceptId, null, null, opv2Date, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv2GroupingObs, immunizationEncounterId, encounterDate, opv2Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertNumericObs, patientId, opv2GroupingObs, immunizationEncounterId, encounterDate, opv2Date, vaccineSeqConceptId, null, 2, null, creator);
+                        buildObsPreparedStatement(insertDatetimeObs, patientId, opv2GroupingObs, immunizationEncounterId, encounterDate, opv2Date, vaccineDateGivenConceptId, null, null, opv2Date, creator);
                     }
 
                     // add opv 3 vaccine
@@ -2593,14 +2670,14 @@ public class DbImportUtil {
                         opv3GroupingObs = rsOpv3ObsGroup.getInt(1);
                         rsOpv3ObsGroup.close();
 
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineQConceptId, opvConceptId, null, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineSeqConceptId, null, 3, null, creator);
-                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, opv3Date, opv3Date, vaccineDateGivenConceptId, null, null, opv3Date, creator);
+                        buildObsPreparedStatement(insertCodedObs, patientId, opv3GroupingObs, immunizationEncounterId, encounterDate, opv3Date, vaccineQConceptId, opvConceptId, null, null, creator);
+                        buildObsPreparedStatement(insertNumericObs, patientId, opv3GroupingObs, immunizationEncounterId, encounterDate, opv3Date, vaccineSeqConceptId, null, 3, null, creator);
+                        buildObsPreparedStatement(insertDatetimeObs, patientId, opv3GroupingObs, immunizationEncounterId, encounterDate, opv3Date, vaccineDateGivenConceptId, null, null, opv3Date, creator);
                     }
                     // --------------
 
                     recordCount++;
-                    DbImportUtil.updateMigrationProgressMapProperty("Patient Contacts", "processedCount", String.valueOf(recordCount));
+                    DbImportUtil.updateMigrationProgressMapProperty("HEI Immunization", "processedCount", String.valueOf(recordCount));
                 }
 
             } catch (IllegalAccessException e) {
@@ -2630,6 +2707,8 @@ public class DbImportUtil {
                     }
                 }
             }
+            System.out.println("Completed processing HEI immunization dataset ..............");
+
             return ;
 
         } catch (Exception e) {
@@ -2643,7 +2722,7 @@ public class DbImportUtil {
         try {
             psObs.setTimestamp(1, new java.sql.Timestamp(dateCreated.getTime())); // set date created
             psObs.setInt(2, creator); // set creator
-            psObs.setTimestamp(3, new java.sql.Timestamp(vaccinationDate.getTime())); // set date created
+            psObs.setTimestamp(3, new java.sql.Timestamp(vaccinationDate.getTime())); // set obs datetime
             psObs.setInt(4, encounterId);// encounter_id
             psObs.setInt(5, conceptQuestion);
             if (codedAnswer != null) {
@@ -2651,7 +2730,7 @@ public class DbImportUtil {
             } else if (numericAnswer != null) {
                 psObs.setDouble(6, numericAnswer);
             } else if (dateAnswer != null) {
-                psObs.setTimestamp(6, new java.sql.Timestamp(vaccinationDate.getTime()));
+                psObs.setTimestamp(6, new java.sql.Timestamp(dateAnswer.getTime()));
             }
             psObs.setInt(7, groupingObsId);
             psObs.setInt(8, patientId);

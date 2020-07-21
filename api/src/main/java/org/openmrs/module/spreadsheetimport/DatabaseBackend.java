@@ -336,7 +336,7 @@ public class DatabaseBackend {
 
     public static String importData(Map<UniqueImport, Set<SpreadsheetImportTemplateColumn>> rowData,
                                     String encounterDate, String patientId, List<GroupedObservations> groupedObservations,
-                                    boolean rollbackTransaction, Connection conn) throws Exception {
+                                    boolean rollbackTransaction, Connection conn, Integer creator, String dateCreated) throws Exception {
         //Connection conn = null;
         Statement s = null;
         Exception exception = null;
@@ -536,7 +536,8 @@ public class DatabaseBackend {
 
                         // inject date_created
                         columnNames += "date_created";
-                        columnValues += "now()";
+                        //columnValues += "now()";
+                        columnValues += "'" + dateCreated + "'";;
 
                         // find encounter_datetime based on observation date time
                         java.sql.Date encounterDatetime = new java.sql.Date(System.currentTimeMillis());
@@ -706,7 +707,9 @@ public class DatabaseBackend {
                         }
                     }
                     columnNames += ", date_created";
-                    columnValues += ",now()";
+                    //columnValues += ",now()";
+                    columnValues += ",'" + dateCreated + "'";;
+
                 }
 
                 // SPECIAL TREATMENT: if this is patient identifier, then set location_id to NULL, to avoid CONSTRAINT `patient_identifier_ibfk_2` FOREIGN KEY (`location_id`) REFERENCES `location` (`location_id`))
@@ -717,7 +720,7 @@ public class DatabaseBackend {
 
                 // creator
                 columnNames += ",creator";
-                columnValues += "," + Context.getAuthenticatedUser().getId();
+                columnValues += "," + creator;
 
                 //TODO: provide a predefined list of table names with uuids
                 DatabaseMetaData dmd = null;
@@ -748,7 +751,9 @@ public class DatabaseBackend {
                         (uniqueImport.getTableName().equals("visit") ||
                                 uniqueImport.getTableName().equals("patient_program"))) {
                     columnNames += ",date_created";
-                    columnValues += ",now()";
+                    //columnValues += ",now()";
+                    columnValues += ",'" + dateCreated + "'";;
+
                 } /*else {
                     ResultSet dateCreatedColumn = dmd.getColumns(null, null, uniqueImport.getTableName(), "date_created");
                     if (dateCreatedColumn.next() && !columnNames.contains("date_created")) {
@@ -775,12 +780,13 @@ public class DatabaseBackend {
                         rs.close();
                     } else {
                         String insertVisitQry = "insert into visit(patient_id, visit_type_id, date_started, date_stopped, creator, date_created, uuid) \n" +
-                                "    values(:patientID,1,':dateStarted',':dateStopped',:creator,now(),uuid())";
+                                "    values(:patientID,1,':dateStarted',':dateStopped',:creator,':dateCreated',uuid())";
                         //replace date started string
                         insertVisitQry = insertVisitQry.replace(":patientID", patientId);
                         insertVisitQry = insertVisitQry.replace(":dateStarted", encStartDatetime);
                         insertVisitQry = insertVisitQry.replace(":dateStopped", encEndDatetime);
-                        insertVisitQry = insertVisitQry.replace(":creator", Context.getAuthenticatedUser().getId().toString());
+                        insertVisitQry = insertVisitQry.replace(":dateCreated", dateCreated);
+                        insertVisitQry = insertVisitQry.replace(":creator", creator.toString());
                         //System.out.println("Insert visit query: " + insertVisitQry);
 
                         s.executeUpdate(insertVisitQry, Statement.RETURN_GENERATED_KEYS);
@@ -814,8 +820,6 @@ public class DatabaseBackend {
 
                 //introduce batch processing for encounter obs
 
-
-
                 if (isObservation) {
                     s.addBatch(sql);
                 } else {
@@ -846,7 +850,7 @@ public class DatabaseBackend {
                                 columnNames = "";
                                 columnValues = "";
                                 columnNames += "date_created";
-                                columnValues += "now()";
+                                columnValues += "'" + dateCreated + "'";
                                 columnNames += ",person_id";
                                 columnValues += "," + patientId;
                                 columnNames += ",encounter_id";
@@ -854,7 +858,7 @@ public class DatabaseBackend {
                                 columnNames += ",obs_datetime";
                                 columnValues += ",'" + encounterDate + "'";
                                 columnNames += ",creator";
-                                columnValues += "," + Context.getAuthenticatedUser().getId();
+                                columnValues += "," + creator;
                                 columnNames += ",uuid";
                                 columnValues += ",uuid()";
                                 columnNames += ",concept_id";
@@ -880,7 +884,7 @@ public class DatabaseBackend {
                                         columnNames = "";
                                         columnValues = "";
                                         columnNames += "date_created";
-                                        columnValues += "now()";
+                                        columnValues += "'" + dateCreated + "'";;
                                         columnNames += ",person_id";
                                         columnValues += "," + patientId;
                                         columnNames += ",encounter_id";
@@ -888,7 +892,7 @@ public class DatabaseBackend {
                                         columnNames += ",obs_datetime";
                                         columnValues += ",'" + encounterDate + "'";
                                         columnNames += ",creator";
-                                        columnValues += "," + Context.getAuthenticatedUser().getId();
+                                        columnValues += "," + creator;
                                         columnNames += ",uuid";
                                         columnValues += ",uuid()";
                                         columnNames += ",concept_id";
