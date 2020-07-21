@@ -48,7 +48,8 @@ public class AdminList extends AdministrationSectionExt {
 		Map<String, String> map = new HashMap<String, String>();
 		
 		map.put("module/spreadsheetimport/spreadsheetimport.list", "Spreadsheet Import Template List");
-		
+		map.put("module/spreadsheetimport/spreadsheetimportprocessdatasets.form", "Migrate Data to KenyaEMR");
+
 		return map;
 	}
 	

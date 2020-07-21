@@ -106,7 +106,7 @@ public class SpreadsheetImportImportFormController {
 		if (request.getParameter("rollbackTransaction") == null) {
 			rollbackTransaction = false;
 		}
-		
+
 		File returnedFile = SpreadsheetImportUtil.importTemplate(template, file, sheet, messages, rollbackTransaction);
 		boolean succeeded = (returnedFile != null);
 
@@ -119,11 +119,11 @@ public class SpreadsheetImportImportFormController {
 		}
 		if (succeeded) {
 			messageString += "Success!";
-			try {	    	
+			try {
 			      InputStream is = new FileInputStream(returnedFile);
 			      response.setContentType("application/ms-excel");
 			      response.addHeader("content-disposition", "inline;filename=" + returnedFile.getName());
-			      IOUtils.copy(is, response.getOutputStream());			      
+			      IOUtils.copy(is, response.getOutputStream());
 			      response.flushBuffer();
 			    } catch (IOException ex) {
 			      log.info("Error writing file to output stream");

@@ -35,6 +35,7 @@ import org.openmrs.module.spreadsheetimport.DatabaseBackend;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplate;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplateColumn;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplateColumnPrespecifiedValue;
+import org.openmrs.module.spreadsheetimport.SpreadsheetImportTemplatePrespecifiedValue;
 import org.openmrs.module.spreadsheetimport.SpreadsheetImportUtil;
 import org.openmrs.module.spreadsheetimport.UniqueImport;
 import org.openmrs.module.spreadsheetimport.service.SpreadsheetImportService;
@@ -75,7 +76,11 @@ public class SpreadsheetImportFormController {
 			template = Context.getService(SpreadsheetImportService.class).getTemplateById(id);
 		} else {
 			template = new SpreadsheetImportTemplate();
-		}				
+		}
+
+/*		for (SpreadsheetImportTemplatePrespecifiedValue s : template.getPrespecifiedValues()) {
+			System.out.println("Table: " + s.getTableDotColumn() + ", Value: " + s.getValue());
+		}*/
 		model.addAttribute("template", template);		
 		
 		// Citigo addition starts
@@ -146,7 +151,7 @@ public class SpreadsheetImportFormController {
 					else if ("CWE".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_coded");
 					else if ("BIT".equals(hl7Abbrev))
-						column.setTableDotColumn("obs.value_boolean");
+						column.setTableDotColumn("obs.value_numeric"); // this saves as numeric in later versions of OpenMRS
 					else if ("DT".equals(hl7Abbrev) || "TM".equals(hl7Abbrev) || "TS".equals(hl7Abbrev))
 						column.setTableDotColumn("obs.value_datetime");
 					else if ("ST".equals(hl7Abbrev))
@@ -260,11 +265,17 @@ public class SpreadsheetImportFormController {
 		
 		if (request.getParameter("step").equals("columns")) {
 							
-			template.clearPrespecifiedValues();
-			template.clearColumnColumns();
-			SpreadsheetImportUtil.resolveTemplateDependencies(template);
+			//template.clearPrespecifiedValues();
+			//template.clearColumnColumns();
+			//SpreadsheetImportUtil.resolveTemplateDependencies(template);
 			if (template.getPrespecifiedValues().size() != 0) {
 				return "/module/spreadsheetimport/spreadsheetimportFormPrespecifiedValue";
+			} else {
+				template.clearPrespecifiedValues();
+				template.clearColumnColumns();
+				SpreadsheetImportUtil.resolveTemplateDependencies(template);
+				return "/module/spreadsheetimport/spreadsheetimportFormPrespecifiedValue";
+
 			}
 
 		}

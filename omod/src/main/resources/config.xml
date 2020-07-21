@@ -18,6 +18,9 @@
 	<!-- /Base Module Properties -->
 	
 	<require_version>1.2.0.3400</require_version>
+	<require_modules>
+		<require_module version="${idgenVersion}">org.openmrs.module.idgen</require_module>
+	</require_modules>
 	
 	<!-- Extensions -->
 	<extension>
@@ -50,6 +53,29 @@
         <description>Allows user to save Spreadsheet Import templates.</description>
     </privilege>
 
+	<globalProperty>
+		<property>spreadsheetimport.sourcePrimaryIdentifierType</property>
+		<defaultValue>b3d6de9f-f215-4259-9805-8638c887e46b</defaultValue>
+		<description>
+			This is the UUID of the primary identifier type in the source database
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>spreadsheetimport.migrationDatabase</property>
+		<defaultValue>migration_tr</defaultValue>
+		<description>
+			The database that hosts datasets for migration
+		</description>
+	</globalProperty>
+	<globalProperty>
+		<property>spreadsheetimport.migrationConfigDirectory</property>
+		<defaultValue>spreadsheetimport</defaultValue>
+		<description>
+			A directory that stores config files for migration
+		</description>
+	</globalProperty>
+
 	<!-- Required Global Properties 
 	<globalProperty>
 		<property>@MODULE_ID@.someProperty</property>
@@ -61,24 +87,28 @@
 		</description>
 	</globalProperty>
 	/Required Global Properties -->
-	
-	<!--
+
 	<dwr>
 		<allow>
-			<create creator="new" javascript="DWRFormEntryService">
-				<param name="class" value="org.openmrs.module.@MODULE_ID@.web.DWRFormEntryService"/>
-				<include method="enterForm"/>
+			<create creator="new" javascript="DWRMigrationService">
+				<param name="class" value="${project.parent.groupId}.spreadsheetimport.web.dwr.DWRMigrationService"/>
+				<include method="getMigrationDatasetUpdates"/>
+				<include method="processAllDatasets"/>
 			</create>
+			<!--<convert match="org.openmrs.module.evrreports.UserFacility" converter="bean" />
+			<convert match="org.openmrs.Location" converter="bean" />
+			<convert match="org.openmrs.User" converter="bean"/>-->
 		</allow>
 
 		<signatures>
 			<![CDATA[
-			import @MODULE_PACKAGE@.web.DWRFormEntryService;
-			DWRFormEntryService.enterForm(Integer patientId, Integer formId, boolean useEncounter, List<String> fields);
+			import ${project.parent.groupId}.spreadsheetimport.web.dwr.DWRMigrationService;
+			DWRMigrationService.getMigrationDatasetUpdates();
+			DWRMigrationService.processAllDatasets();
+
 			]]>
-		</signatures>	
+		</signatures>
 	</dwr>
-	-->
 	
 	<!-- Servlets -->
 	<!-- Accessed through the url /pageContext()/moduleServlet/<moduleId>/<servlet-name> 

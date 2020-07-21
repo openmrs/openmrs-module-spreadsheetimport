@@ -37,7 +37,14 @@ lib/poi-ooxml-3.6-20091214.jar
 				<scope>compile</scope>
 			</dependency>
 			-->
-			
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>idgen-api</artifactId>
+				<version>${idgenVersion}</version>
+				<scope>provided</scope>
+			</dependency>
+			<!-- Begin OpenMRS core -->
+
 			<dependency>
 				<groupId>org.openmrs.api</groupId>
 				<artifactId>openmrs-api</artifactId>
@@ -45,6 +52,7 @@ lib/poi-ooxml-3.6-20091214.jar
 				<type>jar</type>
 				<scope>provided</scope>
 			</dependency>
+
 			<dependency>
 				<groupId>org.openmrs.web</groupId>
 				<artifactId>openmrs-web</artifactId>
@@ -53,27 +61,59 @@ lib/poi-ooxml-3.6-20091214.jar
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
-				<groupId>org.openmrs.test</groupId>
-				<artifactId>openmrs-test</artifactId>
+				<groupId>org.openmrs.api</groupId>
+				<artifactId>openmrs-api</artifactId>
 				<version>${openMRSVersion}</version>
-				<type>jar</type>
+				<type>test-jar</type>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
+				<groupId>org.openmrs.web</groupId>
+				<artifactId>openmrs-web</artifactId>
+				<version>${openMRSVersion}</version>
+				<type>test-jar</type>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.test</groupId>
+				<artifactId>openmrs-test</artifactId>
+				<version>${openMRSVersion}</version>
+				<type>pom</type>
+				<scope>test</scope>
+			</dependency>
+
+
+			<dependency>
 				<groupId>org.apache.poi</groupId>
 				<artifactId>poi</artifactId>
-				<version>3.6</version>
+				<version>${poiVersion}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.apache.poi</groupId>
-				<artifactId>poi-ooxml-schemas</artifactId>
-				<version>3.6</version>
+				<artifactId>poi-ooxml</artifactId>
+				<version>${poiVersion}</version>
 			</dependency>
+			<dependency>
+				<groupId>commons-validator</groupId>
+				<artifactId>commons-validator</artifactId>
+				<version>${apacheValidatorVersion}</version>
+			</dependency>
+			<!--Adding dependency for json-simple -->
+			<dependency>
+				<groupId>com.googlecode.json-simple</groupId>
+				<artifactId>json-simple</artifactId>
+				<version>1.1.1</version>
+			</dependency>
+
 		</dependencies>
+
 	</dependencyManagement>
 
 	<properties>
-		<openMRSVersion>1.6.2</openMRSVersion>
+		<openMRSVersion>1.12.1</openMRSVersion>
+		<poiVersion>3.15</poiVersion>
+		<apacheValidatorVersion>1.6</apacheValidatorVersion>
+		<idgenVersion>2.6</idgenVersion>
 	</properties>
 
 	<build>

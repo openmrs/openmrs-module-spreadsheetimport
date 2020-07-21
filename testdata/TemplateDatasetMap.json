@@ -1,0 +1,175 @@
+[
+   {
+    "description": "Applies to processing of HIV enrollment data",
+    "template_id": 8,
+    "dataset": "tr_hiv_enrollment",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to processing of HIV patient program history",
+    "template_id": 9,
+    "dataset": "tr_hiv_program_enrollment",
+    "obsGroupConfig":""
+  },
+    {
+    "description": "Processes HIV program discontinuation data",
+    "template_id": 10,
+    "dataset": "tr_hiv_program_discontinuation",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to processing of triage data",
+    "template_id": 11,
+    "dataset": "tr_triage",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to processing of HTS initial data",
+    "template_id": 12,
+    "dataset": "tr_hts_initial",
+    "obsGroupConfig": "HtsGroupedObservations.json"
+  },
+  {
+    "description": "Applies to processing of HTS retest data",
+    "template_id": 15,
+    "dataset": "tr_hts_retest",
+    "obsGroupConfig": "HtsGroupedObservations.json"
+  },
+   {
+    "description": "Processes IPT Initiation",
+    "template_id": 16,
+    "dataset": "tr_ipt_enrollment",
+    "obsGroupConfig":""
+  },
+    {
+    "description": "Processes IPT program patient history",
+    "template_id": 17,
+    "dataset": "tr_ipt_program",
+    "obsGroupConfig":""
+  },
+      {
+    "description": "Processes IPT Outcome",
+    "template_id": 18,
+    "dataset": "tr_ipt_outcome",
+    "obsGroupConfig":""
+  },
+  
+  {
+    "description": "Processes IPT program patient follow-up visits",
+    "template_id": 19,
+    "dataset": "tr_ipt_followup",
+    "obsGroupConfig":""
+  },
+
+  {
+    "description": "Processes HIV program follow-up visits",
+    "template_id": 22,
+    "dataset": "tr_hiv_followup",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to processing of ART regimen history data for patients",
+    "template_id": 23,
+    "dataset": "tr_hiv_regimen_history",
+    "obsGroupConfig":""
+  },
+{
+    "description": "Processes Enhanced adherence screening",
+    "template_id": 25,
+    "dataset": "tr_enhanced_adherence",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Processes MCH Mother Service Enrollment",
+    "template_id": 26,
+    "dataset": "tr_mch_enrollment",
+    "obsGroupConfig":""
+  },
+   
+  {
+    "description": "Applies to CCC defaulter tracing",
+    "template_id": 34,
+    "dataset": "tr_defaulter_tracing",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to OTZ Activity",
+    "template_id": 37,
+    "dataset": "tr_otz_activity",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "OTZ Outcome",
+    "template_id": 38,
+    "dataset": "tr_otz_outcome",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to OVC enrolment",
+    "template_id": 39,
+    "dataset": "tr_ovc_enrolment",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to OVC Outcome",
+    "template_id": 40,
+    "dataset": "tr_ovc_outcome",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Applies to OTZ enrolment",
+    "template_id": 41,
+    "dataset": "tr_otz_enrolment",
+    "obsGroupConfig":""
+  },
+    {
+    "description": "Applies to HTS Linkage",
+    "template_id": 42,
+    "dataset": "tr_hts_linkage",
+    "obsGroupConfig":""
+  },
+    {
+    "description": "Processes MCH-MS Discharge",
+    "template_id": 43,
+    "dataset": "tr_mch_discharge",
+    "obsGroupConfig":""
+  },
+      {
+    "description": "Processes MCH-MS Delivery",
+    "template_id": 44,
+    "dataset": "tr_mch_delivery",
+    "obsGroupConfig":""
+  },
+    {
+    "description": "Processes MCH-MS ANC Visit",
+    "template_id": 45,
+    "dataset": "tr_mch_anc_visit",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Processes MCH-MS PNC Visit",
+    "template_id": 46,
+    "dataset": "tr_mch_pnc_visit",
+    "obsGroupConfig":""
+  },
+  {
+    "description": "Processes HEI Outcome",
+    "template_id": 47,
+    "dataset": "tr_hei_outcome",
+    "obsGroupConfig":""
+  }
+
+  {
+    "description": "Processes HEI Followup",
+    "template_id": 49,
+    "dataset": "tr_hei_followup",
+    "obsGroupConfig":""
+  }
+    {
+    "description": "Processes HEI enrolment",
+    "template_id": 50,
+    "dataset": "tr_hei_enrollment",
+    "obsGroupConfig":""
+  }
+  
+]
