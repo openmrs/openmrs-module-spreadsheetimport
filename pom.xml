@@ -62,7 +62,7 @@ lib/poi-ooxml-3.6-20091214.jar
 			<dependency>
 				<groupId>org.apache.poi</groupId>
 				<artifactId>poi</artifactId>
-				<version>3.6</version>
+				<version>3.17</version>
 			</dependency>
 			<dependency>
 				<groupId>org.apache.poi</groupId>
